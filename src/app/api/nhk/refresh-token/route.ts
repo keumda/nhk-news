@@ -1,19 +1,17 @@
 import { NextResponse } from "next/server";
 import { chromium } from "playwright";
-import { writeFileSync, readFileSync } from "fs";
-import { resolve } from "path";
 
 /**
- * Refresh NHK cookies using headed Playwright.
+ * Refresh NHK cookies using headless Playwright.
  * Opens NHK Easy News, clicks "I understood" overseas dialog,
- * captures fresh z_at + bff-rt-authz cookies, and writes them to .env.local.
+ * captures fresh z_at + bff-rt-authz cookies, and updates process.env.
  *
  * POST /api/nhk/refresh-token
  */
 export async function POST() {
   let browser;
   try {
-    browser = await chromium.launch({ headless: false });
+    browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
       userAgent:
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
@@ -49,16 +47,7 @@ export async function POST() {
       .map((c) => `${c.name}=${c.value}`)
       .join("; ");
 
-    // Update .env.local
-    const envPath = resolve(process.cwd(), ".env.local");
-    let envContent = readFileSync(envPath, "utf-8");
-    envContent = envContent.replace(
-      /NHK_COOKIES="[^"]*"/,
-      `NHK_COOKIES="${cookieStr}"`,
-    );
-    writeFileSync(envPath, envContent, "utf-8");
-
-    // Also update process.env for the current process
+    // Update process.env for the current process (no file write on server)
     process.env.NHK_COOKIES = cookieStr;
 
     return NextResponse.json({

@@ -66,7 +66,7 @@ async function scrapeArticle(
   id: string,
   cookies: string
 ): Promise<{ body: string; paragraphCount: number }> {
-  const browser = await chromium.launch({ headless: false });
+  const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext();
     await context.addCookies(parseCookies(cookies, "news.web.nhk"));

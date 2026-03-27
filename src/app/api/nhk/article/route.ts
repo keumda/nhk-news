@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
   let browser;
   try {
-    browser = await chromium.launch({ headless: false });
+    browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
     await context.addCookies(parseCookies(cookieStr, "news.web.nhk"));
 
