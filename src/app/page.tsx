@@ -352,7 +352,10 @@ export default function NHKPage() {
       span.classList.add("verb-active");
 
       const conjDetail = (verb.conjugationDetail || "").replace(/\n/g, "<br>");
+      const arrowId = "popover-arrow";
       popover.innerHTML = `
+        <div id="${arrowId}" style="position:absolute;width:12px;height:12px;background:#fff;border:1px solid #e0e0e0;transform:rotate(45deg);z-index:-1"></div>
+        <div style="position:relative;z-index:1;max-height:380px;overflow:auto">
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px">
           <span style="font-size:22px;font-weight:700;color:#1a1a2e">${verb.dictionaryForm}</span>
           <span style="font-size:14px;color:#999">${verb.reading}</span>
@@ -371,16 +374,66 @@ export default function NHKPage() {
           <div style="font-size:15px;color:#222;line-height:1.8;margin-bottom:2px">${verb.exampleDiffVerb}</div>
           <div style="font-size:13px;color:#2c6fbb;line-height:1.5">${verb.exampleDiffVerbKo}</div>
         </div>
+        </div>
       `;
+
+      // Measure popover offscreen first
+      popover.style.left = "-9999px";
+      popover.style.top = "-9999px";
+      popover.style.display = "block";
+
       const popW = 360;
+      const popH = popover.offsetHeight;
+      const gap = 10;
+      const edgePad = 8;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      // Horizontal: center on span, clamp to viewport edges
       let x = rect.left + rect.width / 2 - popW / 2;
-      let y = rect.top - 8;
-      x = Math.max(8, Math.min(x, window.innerWidth - popW - 8));
-      if (y < 320) y = rect.bottom + 8;
-      else y = rect.top - popover.offsetHeight - 8;
+      x = Math.max(edgePad, Math.min(x, vw - popW - edgePad));
+
+      // Arrow horizontal position relative to popover
+      const arrowX = Math.max(16, Math.min(rect.left + rect.width / 2 - x - 6, popW - 28));
+
+      // Vertical: prefer below, fall back to above
+      const spaceBelow = vh - rect.bottom - gap;
+      const spaceAbove = rect.top - gap;
+      let y: number;
+      let arrowOnTop: boolean;
+
+      if (spaceBelow >= popH || spaceBelow >= spaceAbove) {
+        // Place below the word
+        y = rect.bottom + gap;
+        arrowOnTop = true;
+      } else {
+        // Place above the word
+        y = rect.top - popH - gap;
+        arrowOnTop = false;
+      }
+
+      // Clamp vertical to viewport
+      y = Math.max(edgePad, Math.min(y, vh - popH - edgePad));
+
       popover.style.left = x + "px";
       popover.style.top = y + "px";
-      popover.style.display = "block";
+
+      // Position the arrow
+      const arrow = popover.querySelector<HTMLElement>(`#${arrowId}`);
+      if (arrow) {
+        arrow.style.left = arrowX + "px";
+        if (arrowOnTop) {
+          arrow.style.top = "-7px";
+          arrow.style.bottom = "";
+          arrow.style.borderRight = "none";
+          arrow.style.borderBottom = "none";
+        } else {
+          arrow.style.bottom = "-7px";
+          arrow.style.top = "";
+          arrow.style.borderLeft = "none";
+          arrow.style.borderTop = "none";
+        }
+      }
     };
 
     let activeSpan: HTMLElement | null = null;
@@ -796,6 +849,6 @@ const styles: Record<string, React.CSSProperties> = {
   popover: {
     position: "fixed" as const, width: 360, background: "#fff", borderRadius: 14,
     border: "1px solid #e0e0e0", boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-    padding: 18, zIndex: 1000, maxHeight: 420, overflow: "auto",
+    padding: 18, zIndex: 1000, maxHeight: 420, overflow: "visible",
   },
 };
