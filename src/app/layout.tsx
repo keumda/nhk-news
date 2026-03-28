@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import FeedbackWidget from "@/components/FeedbackWidget";
 
 export const metadata: Metadata = {
   title: "NHK やさしいにほんご | 일본어 뉴스 리더",
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="ko" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
         {children}
+        <FeedbackWidget />
       </body>
     </html>
   );
