@@ -311,6 +311,10 @@ export default function NHKPage() {
   useEffect(() => {
     if (verbAnalysis.length === 0 || !detail?.body || loadingDetail) return;
 
+    const isTouchDevice = "ontouchstart" in window;
+    let onTouchOutside: ((e: TouchEvent) => void) | null = null;
+    const handlers: Array<{ el: HTMLElement; enter: EventListener; leave: EventListener; touch?: boolean }> = [];
+
     // Delay to ensure DOM is fully committed after React render
     const rafId = setTimeout(() => {
     const popover = popoverRef.current;
@@ -345,7 +349,6 @@ export default function NHKPage() {
     };
 
     const spans = allSpans;
-    const handlers: Array<{ el: HTMLElement; enter: () => void; leave: () => void }> = [];
 
     const showPopover = (verb: VerbAnalysisItem, span: HTMLElement, rect: DOMRect) => {
       // Highlight the hovered span
@@ -437,14 +440,43 @@ export default function NHKPage() {
     };
 
     let activeSpan: HTMLElement | null = null;
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    const isTouchDevice = "ontouchstart" in window;
+
     const hidePopover = () => {
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
       popover.style.display = "none";
       if (activeSpan) { activeSpan.classList.remove("verb-active"); activeSpan = null; }
     };
 
-    // Keep popover visible when hovering over it
-    popover.addEventListener("mouseenter", () => { popover.style.display = "block"; });
-    popover.addEventListener("mouseleave", hidePopover);
+    const showForSpan = (verb: VerbAnalysisItem, span: HTMLElement) => {
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      if (activeSpan && activeSpan !== span) activeSpan.classList.remove("verb-active");
+      activeSpan = span;
+      showPopover(verb, span, span.getBoundingClientRect());
+    };
+
+    // Keep popover visible when hovering over it (desktop only)
+    if (!isTouchDevice) {
+      popover.addEventListener("mouseenter", () => {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        popover.style.display = "block";
+      });
+      popover.addEventListener("mouseleave", hidePopover);
+    }
+
+    // Close popover when tapping outside (mobile)
+    onTouchOutside = (e: TouchEvent) => {
+      const target = e.target as Node;
+      if (popover.contains(target)) return;
+      for (const h of handlers) {
+        if (h.el.contains(target)) return;
+      }
+      hidePopover();
+    };
+    if (isTouchDevice) {
+      document.addEventListener("touchstart", onTouchOutside, { passive: true });
+    }
 
     spans.forEach((span) => {
       const text = spanText(span);
@@ -452,23 +484,44 @@ export default function NHKPage() {
       if (!verb) return;
       span.classList.add("verb-hover");
 
-      const enter = () => {
-        if (activeSpan && activeSpan !== span) activeSpan.classList.remove("verb-active");
-        activeSpan = span;
-        showPopover(verb, span, span.getBoundingClientRect());
-      };
-      const leave = () => { setTimeout(() => { if (!popover.matches(":hover")) hidePopover(); }, 100); };
-
-      span.addEventListener("mouseenter", enter);
-      span.addEventListener("mouseleave", leave);
-      handlers.push({ el: span, enter, leave });
+      if (isTouchDevice) {
+        // Mobile: use click (fires after touch), no delayed hide
+        const tap = (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showForSpan(verb, span);
+        };
+        span.addEventListener("click", tap);
+        handlers.push({ el: span, enter: tap, leave: () => {}, touch: true });
+      } else {
+        // Desktop: mouseenter/mouseleave with delayed hide
+        const enter = () => { showForSpan(verb, span); };
+        const leave = () => {
+          hideTimer = setTimeout(() => {
+            if (!popover.matches(":hover")) hidePopover();
+          }, 120);
+        };
+        span.addEventListener("mouseenter", enter);
+        span.addEventListener("mouseleave", leave);
+        handlers.push({ el: span, enter, leave });
+      }
     });
 
     }, 100); // 100ms delay to ensure DOM is ready
 
     return () => {
       clearTimeout(rafId);
-      // Clean up any verb-hover spans from previous run
+      if (isTouchDevice && onTouchOutside) {
+        document.removeEventListener("touchstart", onTouchOutside);
+      }
+      for (const h of handlers) {
+        if (h.touch) {
+          h.el.removeEventListener("click", h.enter);
+        } else {
+          h.el.removeEventListener("mouseenter", h.enter);
+          h.el.removeEventListener("mouseleave", h.leave);
+        }
+      }
       document.querySelectorAll(".verb-hover").forEach((el) => {
         el.classList.remove("verb-hover", "verb-active");
       });
@@ -706,6 +759,22 @@ export default function NHKPage() {
             })}
           </div>
         )}
+        {/* footer */}
+        <footer style={styles.footer}>
+          <p style={styles.footerMain}>
+            본 콘텐츠의 원문은{" "}
+            <a href="https://www3.nhk.or.jp/news/easy/" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>
+              NHK NEWS WEB EASY
+            </a>
+            에서 제공됩니다.
+          </p>
+          <p style={styles.footerSub}>
+            한국어 번역 및 문법 분석은 일본어 학습 목적으로만 제공되며, NHK의 공식 번역이 아닙니다.
+          </p>
+          <p style={styles.footerCopy}>
+            &copy; NHK &middot; 뉴스 저작권은 NHK에 있습니다
+          </p>
+        </footer>
       </div>
       <style suppressHydrationWarning>{globalCSS}</style>
     </div>
@@ -843,6 +912,24 @@ const styles: Record<string, React.CSSProperties> = {
   retryBtn: {
     marginTop: 16, padding: "8px 24px", borderRadius: 8, border: "1px solid #e74c3c",
     background: "none", color: "#e74c3c", cursor: "pointer", fontWeight: 600, fontSize: 14, font: "inherit",
+  },
+
+  /* footer */
+  footer: {
+    marginTop: 48, padding: "24px 0 16px", borderTop: "1px solid #eee",
+    textAlign: "center" as const,
+  },
+  footerMain: {
+    fontSize: 13, color: "#666", lineHeight: 1.6, margin: "0 0 6px",
+  },
+  footerLink: {
+    color: "#2c6fbb", textDecoration: "none", fontWeight: 600,
+  },
+  footerSub: {
+    fontSize: 12, color: "#999", lineHeight: 1.5, margin: "0 0 10px",
+  },
+  footerCopy: {
+    fontSize: 11, color: "#bbb", margin: 0,
   },
 
   /* verb popover (positioned via JS) */

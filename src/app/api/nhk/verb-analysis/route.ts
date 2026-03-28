@@ -4,8 +4,10 @@ import {
   readVerbAnalysis,
   writeVerbAnalysis,
   findCacheDate,
+  readPrompts,
   VerbAnalysisItem,
 } from "@/lib/cache";
+import { DEFAULT_VERB_ANALYSIS_PROMPT } from "@/lib/prompts";
 
 /**
  * Extract verb/adjective candidate surface forms from NHK article HTML.
@@ -46,6 +48,13 @@ async function analyzeVerbs(
 
   const numbered = candidates.map((c, i) => `[${i + 1}] ${c}`).join("\n");
 
+  // Load custom prompt or use default, then replace placeholders
+  const saved = await readPrompts();
+  const promptTemplate = saved?.verbAnalysisPrompt || DEFAULT_VERB_ANALYSIS_PROMPT;
+  const prompt = promptTemplate
+    .replace("{{plainText}}", plainText)
+    .replace("{{numbered}}", numbered);
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -59,45 +68,7 @@ async function analyzeVerbs(
       messages: [
         {
           role: "user",
-          content: `당신은 일본어 문법 전문가입니다. NHK やさしいにほんご 뉴스 기사에서 추출한 동사/형용사를 한국어 학습자를 위해 분석해주세요.
-
-기사 본문:
-${plainText}
-
-동사/형용사 후보:
-${numbered}
-
-중요: 후보 목록의 단어는 기사 문장에서 잘린 조각일 수 있습니다. 기사 본문의 문맥을 반드시 참고하여, 해당 단어가 실제 문장에서 어떤 전체 표현의 일부인지 파악하세요.
-예를 들어 "出し" 라는 후보가 있고 기사에 "出し始めました"가 있다면, 전체 표현 "出し始める"의 맥락에서 분석하세요.
-
-각 후보를 분석해주세요:
-1. 동사 또는 い형용사가 아닌 경우 (명사, 부사, 접속사, 숫자 등) 건너뛰세요
-2. 동사/い형용사인 경우 아래 JSON 형식으로 분석해주세요
-
-응답 형식 - JSON 배열만 출력:
-[
-  {
-    "surfaceForm": "기사에 나온 활용형 그대로 (후보 목록의 텍스트와 정확히 일치)",
-    "dictionaryForm": "사전형 (원형)",
-    "reading": "사전형의 정확한 히라가나 읽기 (예: 入る→はいる, 始める→はじめる)",
-    "meaning": "사전형의 한국어 뜻 (예: '들어가다', '시작하다', '적다/부족하다')",
-    "conjugationRule": "활용 규칙 이름 (반드시 한국어로! 예: 'て형 연결', 'ます형 정중 과거', '복합동사 + ている 진행형')",
-    "conjugationDetail": "변형 과정을 단계별로 한국어로 상세하게 설명. 예시:\n- 단순: '入る → 入って (5단동사 る→って, て형 변환)'\n- 복합: '出す(내다) + 始める(시작하다) → 出し始める(내기 시작하다) → 出し始めました (ます형 과거: 始める→始めます→始めました)'\n- ている: '少ない→少なく (く변환, い형용사 연용형) + なる→なっている (5단 る→って + いる 진행)'",
-    "exampleSameVerb": "같은 동사를 기사와는 다른 활용형/문법으로 사용한 예문 (일본어). 예: 기사에서 '入って'(て형)이면 → '入りました'(ます형 과거)나 '入れば'(조건형) 등 다른 활용을 보여줘",
-    "exampleSameVerbKo": "위 예문의 한국어 번역",
-    "exampleDiffVerb": "반드시 다른 동사를 기사와 같은 활용형으로 사용한 예문 (일본어). 예: 기사에서 '入って'(て형)이면 → '食べて'(て형)나 '行って'(て형) 등",
-    "exampleDiffVerbKo": "위 예문의 한국어 번역"
-  }
-]
-
-규칙:
-- JSON 배열만 출력. 다른 텍스트 금지.
-- 모든 설명(meaning, conjugationRule, conjugationDetail)은 반드시 한국어로 작성.
-- conjugationDetail이 가장 중요합니다. 원형에서 기사의 활용형까지 어떻게 변형되는지 단계별로 설명하세요.
-- 복합동사(出し始める, 足りなくなる 등)는 각 동사의 역할과 결합 방식을 설명하세요.
-- reading은 정확한 히라가나 (예: 入る→はいる, 出す→だす, 考える→かんがえる)
-- exampleDiffVerb는 반드시 다른 동사를 사용! (入った → 食べた、行った 등)
-- 예문은 NHK Easy News 수준의 쉬운 일본어로 작성.`,
+          content: prompt,
         },
       ],
     }),

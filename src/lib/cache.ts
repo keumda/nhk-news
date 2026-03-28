@@ -184,6 +184,24 @@ export async function writeAudio(newsId: string, data: CachedAudio, dateStr?: st
   await writeJSON(path.join(datePath(dateStr), "audio", `${newsId}.json`), data);
 }
 
+/* ─── prompts ─── */
+
+export interface PromptSettings {
+  translationPrompt: string;
+  verbAnalysisPrompt: string;
+  updatedAt: string;
+}
+
+const PROMPTS_PATH = path.join(CACHE_ROOT, "prompts.json");
+
+export async function readPrompts(): Promise<PromptSettings | null> {
+  return readJSON<PromptSettings>(PROMPTS_PATH);
+}
+
+export async function writePrompts(data: PromptSettings): Promise<void> {
+  await writeJSON(PROMPTS_PATH, data);
+}
+
 /* ─── cleanup ─── */
 
 export async function cleanOldCaches(keepDays = 7): Promise<void> {

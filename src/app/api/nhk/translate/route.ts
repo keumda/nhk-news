@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readTranslation, writeTranslation, findCacheDate } from "@/lib/cache";
+import { readTranslation, writeTranslation, findCacheDate, readPrompts } from "@/lib/cache";
+import { DEFAULT_TRANSLATION_PROMPT } from "@/lib/prompts";
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +45,10 @@ export async function POST(request: NextRequest) {
       .map((t, i) => `[${i + 1}] ${t.trim()}`)
       .join("\n");
 
+    // Load custom prompt or use default
+    const saved = await readPrompts();
+    const promptTemplate = saved?.translationPrompt || DEFAULT_TRANSLATION_PROMPT;
+
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -57,15 +62,7 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: "user",
-            content: `다음은 NHK やさしいにほんご(쉬운 일본어) 뉴스 기사의 문단들입니다. 각 문단을 자연스러운 한국어로 번역해주세요.
-
-규칙:
-- 번호 형식 [1], [2]... 을 유지하세요
-- 일본어 읽기(후리가나)를 한국어에 포함하지 마세요
-- 의역하여 자연스러운 한국어 문장으로 만드세요
-- 번역만 출력하고 설명은 하지 마세요
-
-${numbered}`,
+            content: `${promptTemplate}\n\n${numbered}`,
           },
         ],
       }),
