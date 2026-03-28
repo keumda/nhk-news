@@ -1,41 +1,97 @@
 import { NextResponse } from "next/server";
-import { chromium } from "playwright";
+
+const AUTH_URL =
+  "https://news.web.nhk/tix/build_authorize?idp=a-alaz&profileType=abroad" +
+  "&redirect_uri=https%3A%2F%2Fnews.web.nhk%2Fnews%2Feasy%2F&entity=none" +
+  "&area=130&pref=13&jisx0402=13101&postal=1000001";
+
+const UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
 /**
- * Refresh NHK cookies using headless Playwright.
- * Opens NHK Easy News, clicks "I understood" overseas dialog,
- * captures fresh z_at + bff-rt-authz cookies, and updates process.env.
- *
+ * Parse Set-Cookie headers from a fetch Response into a simple map.
+ * Merges into an existing cookie map so we accumulate across redirects.
+ */
+function parseSetCookies(
+  res: Response,
+  jar: Map<string, string>,
+): void {
+  // getSetCookie() returns an array of raw Set-Cookie header values
+  const headers = res.headers.getSetCookie?.() ?? [];
+  for (const h of headers) {
+    const match = h.match(/^([^=]+)=([^;]*)/);
+    if (match) jar.set(match[1], match[2]);
+  }
+}
+
+/**
+ * Follow the OAuth redirect chain manually, collecting cookies at each hop.
+ * Returns the accumulated cookie jar.
+ */
+async function followAuthRedirects(
+  existingCookies: string,
+): Promise<Map<string, string>> {
+  const jar = new Map<string, string>();
+
+  // Seed jar with existing cookies
+  for (const pair of existingCookies.split("; ")) {
+    const eq = pair.indexOf("=");
+    if (eq > 0) jar.set(pair.substring(0, eq), pair.substring(eq + 1));
+  }
+
+  let url: string | null = AUTH_URL;
+  let maxHops = 10;
+
+  while (url && maxHops-- > 0) {
+    const cookieHeader = Array.from(jar.entries())
+      .map(([k, v]) => `${k}=${v}`)
+      .join("; ");
+
+    const currentUrl: string = url;
+    const fetchRes = await fetch(currentUrl, {
+      method: "GET",
+      headers: {
+        "User-Agent": UA,
+        Cookie: cookieHeader,
+        Referer: "https://news.web.nhk/news/easy/",
+      },
+      redirect: "manual",
+    });
+
+    parseSetCookies(fetchRes, jar);
+
+    const location = fetchRes.headers.get("location");
+    if (fetchRes.status >= 300 && fetchRes.status < 400 && location) {
+      url = location.startsWith("http")
+        ? location
+        : new URL(location, currentUrl).toString();
+    } else {
+      url = null;
+    }
+  }
+
+  return jar;
+}
+
+/**
  * POST /api/nhk/refresh-token
+ *
+ * Refreshes NHK cookies by following the OAuth redirect chain.
+ * No browser needed — pure HTTP redirects with existing cookies.
  */
 export async function POST() {
-  let browser;
   try {
-    browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({
-      userAgent:
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-    });
-    const page = await context.newPage();
-
-    await page.goto("https://news.web.nhk/news/easy/", {
-      waitUntil: "load",
-      timeout: 30000,
-    });
-    await page.waitForTimeout(5000);
-
-    // Click "I understood" overseas dialog
-    const confirmBtn = page.getByRole("button", {
-      name: /確認しました|I understand/i,
-    });
-    if ((await confirmBtn.count()) > 0) {
-      await confirmBtn.first().click();
-      await page.waitForTimeout(5000);
+    const currentCookies = process.env.NHK_COOKIES || "";
+    if (!currentCookies) {
+      return NextResponse.json(
+        { error: "No existing NHK_COOKIES to refresh" },
+        { status: 400 },
+      );
     }
 
-    // Extract cookies
-    const cookies = await context.cookies();
-    const zAt = cookies.find((c) => c.name === "z_at");
+    const jar = await followAuthRedirects(currentCookies);
+
+    const zAt = jar.get("z_at");
     if (!zAt) {
       return NextResponse.json(
         { error: "Failed to obtain z_at token" },
@@ -43,18 +99,22 @@ export async function POST() {
       );
     }
 
-    const cookieStr = cookies
-      .map((c) => `${c.name}=${c.value}`)
+    const cookieStr = Array.from(jar.entries())
+      .map(([k, v]) => `${k}=${v}`)
       .join("; ");
 
-    // Update process.env for the current process (no file write on server)
     process.env.NHK_COOKIES = cookieStr;
+
+    const expZat = jar.get("exp_z_at");
+    console.log(
+      `[refresh-token] Success. z_at expires at ${expZat ? new Date(Number(expZat) * 1000).toISOString() : "unknown"}`,
+    );
 
     return NextResponse.json({
       success: true,
-      cookieCount: cookies.length,
+      cookieCount: jar.size,
       hasZat: true,
-      expiresAt: cookies.find((c) => c.name === "exp_z_at")?.value,
+      expiresAt: expZat,
     });
   } catch (error) {
     console.error("Token refresh error:", error);
@@ -62,7 +122,5 @@ export async function POST() {
       { error: "Token refresh failed" },
       { status: 500 },
     );
-  } finally {
-    if (browser) await browser.close();
   }
 }

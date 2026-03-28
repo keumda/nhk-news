@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { chromium } from "playwright";
 import * as cheerio from "cheerio";
+import { getNhkCookies } from "@/lib/nhk-auth";
 import {
   todayJST,
   readManifest,
@@ -270,7 +271,7 @@ async function downloadAudioMp3(
   const fs = require("fs");
   const path = require("path");
 
-  const cookieStr = process.env.NHK_COOKIES || "";
+  const cookieStr = await getNhkCookies();
   // z_at is a JWT starting with "eyJ"
   const zAtMatch = cookieStr.match(/z_at=(eyJ[^;"]+)/);
   const zAt = zAtMatch?.[1] || "";
@@ -347,8 +348,7 @@ export async function POST() {
       errors: [],
     });
 
-    const cookies = process.env.NHK_COOKIES || "";
-    if (!cookies) throw new Error("NHK_COOKIES not set");
+    const cookies = await getNhkCookies();
 
     // 1. Fetch news list
     console.log("[refresh] Fetching news list...");

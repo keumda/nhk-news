@@ -63,8 +63,11 @@ export async function GET(request: NextRequest) {
   }
 
   // L2: Playwright scrape (no file cache found)
-  const cookieStr = process.env.NHK_COOKIES || "";
-  if (!cookieStr) {
+  const { getNhkCookies } = await import("@/lib/nhk-auth");
+  let cookieStr: string;
+  try {
+    cookieStr = await getNhkCookies();
+  } catch {
     return NextResponse.json({ error: "NHK_COOKIES not set" }, { status: 500 });
   }
 

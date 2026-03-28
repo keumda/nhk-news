@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readNewsList, writeNewsList, todayJST, yesterdayJST } from "@/lib/cache";
+import { getNhkCookies } from "@/lib/nhk-auth";
 
 const NHK_BASE = "https://news.web.nhk/news/easy";
 
@@ -11,16 +12,10 @@ export async function GET() {
     return NextResponse.json({ articles: fileArticles });
   }
 
-  // L3: live fetch
-  const cookies = process.env.NHK_COOKIES || "";
-  if (!cookies) {
-    return NextResponse.json(
-      { error: "NHK_COOKIES env not set" },
-      { status: 500 }
-    );
-  }
-
+  // L3: live fetch with auto-refreshing cookies
   try {
+    const cookies = await getNhkCookies();
+
     const res = await fetch(`${NHK_BASE}/top-list.json`, {
       headers: {
         Cookie: cookies,

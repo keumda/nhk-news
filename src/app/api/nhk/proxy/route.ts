@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getNhkCookies } from "@/lib/nhk-auth";
 
 const ALLOWED_HOSTS = [
   "news.web.nhk",
@@ -25,7 +26,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const cookies = process.env.NHK_COOKIES || "";
+    let cookies = "";
+    try { cookies = await getNhkCookies(); } catch { /* no cookies available */ }
     const res = await fetch(url, {
       headers: {
         "User-Agent":
