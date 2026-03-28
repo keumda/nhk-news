@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "NHK やさしいにほんご - 한국어 번역과 함께 읽는 쉬운 일본어 뉴스";
+export const alt = "やさしいにほんご 리더";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -94,7 +94,7 @@ export default function Image() {
             display: "flex",
           }}
         >
-          매일 업데이트되는 NHK Easy News를 한국어와 함께
+          NHK Easy News · 매일 업데이트
         </div>
       </div>
     ),
