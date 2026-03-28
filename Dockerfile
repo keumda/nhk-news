@@ -68,8 +68,9 @@ RUN chown -R nextjs:nodejs /home/nextjs/.cache
 # Create writable cache directory for data
 RUN mkdir -p /app/data/cache && chown -R nextjs:nodejs /app/data
 
-USER nextjs
+# Entrypoint: fix volume permissions then start as nextjs user
+RUN printf '#!/bin/sh\nchown -R nextjs:nodejs /app/data\nexec su -s /bin/sh nextjs -c "node server.js"\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["/app/entrypoint.sh"]
