@@ -73,6 +73,8 @@ export default function NHKPage() {
   const [verbAnalysis, setVerbAnalysis] = useState<VerbAnalysisItem[]>([]);
   const bodyRef = useRef<HTMLDivElement>(null);
 
+  const [countdown, setCountdown] = useState("");
+
   const [showFurigana, setShowFurigana] = useState(true);
   const [showKorean, setShowKorean] = useState(true);
   const [speed, setSpeed] = useState(1);
@@ -81,6 +83,26 @@ export default function NHKPage() {
   const [audioDuration, setAudioDuration] = useState(0);
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  /* ─── countdown to next 19:35 JST ─── */
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      const target = new Date(jst);
+      target.setUTCHours(19, 35, 0, 0);
+      // If already past 19:35 JST today, target tomorrow
+      if (jst.getTime() >= target.getTime()) target.setUTCDate(target.getUTCDate() + 1);
+      const diff = target.getTime() - jst.getTime();
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(`${h}시간 ${m}분 ${s}초`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   /* ─── fetch article list + auto-refresh ─── */
   useEffect(() => {
@@ -687,6 +709,9 @@ export default function NHKPage() {
           <p style={styles.subtitle}>
             매일 업데이트 되는 쉬운 일본어 뉴스를 한국어 번역과 함께 읽어보세요
           </p>
+          <p style={styles.countdown}>
+            다음 업데이트까지 {countdown}
+          </p>
           {refreshing && (
             <p style={styles.refreshing}>오늘의 뉴스 데이터를 준비하고 있습니다...</p>
           )}
@@ -735,7 +760,7 @@ export default function NHKPage() {
                   )}
                   <div style={styles.cardContent}>
                     <span style={styles.cardDate}>
-                      {a.news_prearranged_time?.split(" ")[0]}
+                      {a.news_prearranged_time?.replace(/:\d{2}$/, "") || ""}
                     </span>
                     <h2
                       className="nhk-body"
@@ -828,6 +853,11 @@ const styles: Record<string, React.CSSProperties> = {
   header: { textAlign: "center", marginBottom: 32, padding: "32px 0 24px" },
   title: { fontSize: 28, fontWeight: 800, color: "#1a1a2e", marginBottom: 8 },
   subtitle: { fontSize: 14, color: "#666", lineHeight: 1.6 },
+  countdown: {
+    fontSize: 13, color: "#3498db", marginTop: 10,
+    padding: "6px 16px", background: "#ebf5fb", borderRadius: 8,
+    display: "inline-block", fontVariantNumeric: "tabular-nums", fontWeight: 600,
+  },
 
   cardList: { display: "flex", flexDirection: "column", gap: 12 },
   card: {
