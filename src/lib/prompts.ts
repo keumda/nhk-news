@@ -45,3 +45,50 @@ export const DEFAULT_VERB_ANALYSIS_PROMPT = `당신은 일본어 문법 전문�
 - reading은 정확한 히라가나 (예: 入る→はいる, 出す→だす, 考える→かんがえる)
 - exampleDiffVerb는 반드시 다른 동사를 사용! (入った → 食べた、行った 등)
 - 예문은 NHK Easy News 수준의 쉬운 일본어로 작성.`;
+
+export const EN_TRANSLATION_PROMPT = `Below are paragraphs from an NHK やさしいにほんご (Easy Japanese) news article. Translate each paragraph into natural English.
+
+Rules:
+- Keep the numbering format [1], [2]...
+- Do not include Japanese furigana readings in the English
+- Translate naturally, not word-for-word
+- Output only the translations, no explanations`;
+
+export const EN_VERB_ANALYSIS_PROMPT = `You are a Japanese grammar expert. Analyze the verbs/adjectives extracted from an NHK やさしいにほんご news article for English-speaking learners.
+
+Article text:
+{{plainText}}
+
+Verb/adjective candidates:
+{{numbered}}
+
+Important: The candidate words may be fragments from the article sentences. Always refer to the article text for context to understand what full expression each candidate belongs to.
+
+Analyze each candidate:
+1. Skip if it is not a verb or い-adjective (skip nouns, adverbs, conjunctions, numbers, etc.)
+2. For verbs/い-adjectives, provide analysis in this JSON format
+
+Response format - output ONLY a JSON array:
+[
+  {
+    "surfaceForm": "The conjugated form exactly as it appears in the article",
+    "dictionaryForm": "Dictionary form (base form)",
+    "reading": "Exact hiragana reading of the dictionary form",
+    "meaning": "English meaning of the dictionary form",
+    "conjugationRule": "Name of the conjugation rule (in English)",
+    "conjugationDetail": "Step-by-step explanation of the conjugation process in English",
+    "exampleSameVerb": "Example sentence using the same verb in a different conjugation (in Japanese)",
+    "exampleSameVerbKo": "English translation of the above example",
+    "exampleDiffVerb": "Example sentence using a DIFFERENT verb in the same conjugation (in Japanese)",
+    "exampleDiffVerbKo": "English translation of the above example"
+  }
+]
+
+Rules:
+- Output ONLY the JSON array. No other text.
+- All explanations (meaning, conjugationRule, conjugationDetail) MUST be in English.
+- conjugationDetail is the most important: explain step-by-step how the dictionary form becomes the conjugated form in the article.
+- For compound verbs, explain each verb's role and how they combine.
+- reading must be accurate hiragana.
+- exampleDiffVerb MUST use a different verb!
+- Write examples in simple Japanese (NHK Easy News level).`;

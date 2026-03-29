@@ -26,9 +26,13 @@ function parseCookies(cookieStr: string, domain: string) {
 
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
+  const lang = request.nextUrl.searchParams.get("lang") || "ko";
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
+
+  const transDir = lang === "en" ? "translations-en" : "translations";
+  const verbDir = lang === "en" ? "verb-analysis-en" : "verb-analysis";
 
   // L1: file cache -- scan all date directories to find where article lives
   const articleDate = await findCacheDate(id, "articles");
@@ -37,11 +41,11 @@ export async function GET(request: NextRequest) {
     if (fileData) {
       // Look for translations & verb analysis in the same date dir first,
       // then scan other dates as fallback
-      const transDate = await findCacheDate(id, "translations");
-      const verbDate = await findCacheDate(id, "verb-analysis");
+      const transDate = await findCacheDate(id, transDir);
+      const verbDate = await findCacheDate(id, verbDir);
 
-      const fileTrans = transDate ? await readTranslation(id, transDate) : null;
-      const fileVerbs = verbDate ? await readVerbAnalysis(id, verbDate) : null;
+      const fileTrans = transDate ? await readTranslation(id, transDate, lang) : null;
+      const fileVerbs = verbDate ? await readVerbAnalysis(id, verbDate, lang) : null;
 
       const data = {
         id: fileData.id,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import Hls from "hls.js";
+import { t, Lang } from "@/lib/i18n";
 
 /* ─── StableHTML: renders HTML once via ref, survives parent re-renders ─── */
 const StableHTML = memo(function StableHTML({ html, className }: { html: string; className: string }) {
@@ -55,6 +56,7 @@ const proxyUrl = (url: string) =>
 
 /* ─────────────────────────── main page ─────────────────────────── */
 export default function NHKPage() {
+  const [lang, setLang] = useState<Lang>("ko");
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -97,12 +99,12 @@ export default function NHKPage() {
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      setCountdown(`${h}시간 ${m}분 ${s}초`);
+      setCountdown(`${h}${t("countdownHour", lang)} ${m}${t("countdownMin", lang)} ${s}${t("countdownSec", lang)}`);
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [lang]);
 
   /* ─── fetch article list + auto-refresh ─── */
   useEffect(() => {
@@ -159,7 +161,7 @@ export default function NHKPage() {
       );
       const bodyTexts = paras
         .map((p) => p.textContent?.trim() || "")
-        .filter((t) => t.length > 0);
+        .filter((txt) => txt.length > 0);
 
       const plainTitle = title ? htmlToText(title) : "";
 
@@ -169,7 +171,7 @@ export default function NHKPage() {
       fetch("/api/nhk/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texts: bodyTexts, articleId, title: plainTitle }),
+        body: JSON.stringify({ texts: bodyTexts, articleId, title: plainTitle, lang }),
       })
         .then((r) => r.json())
         .then((d) => {
@@ -179,7 +181,7 @@ export default function NHKPage() {
         .catch(() => {})
         .finally(() => setLoadingTranslation(false));
     },
-    []
+    [lang]
   );
 
   /* ─── open article ─── */
@@ -200,7 +202,7 @@ export default function NHKPage() {
       window.scrollTo({ top: 0 });
 
       try {
-        const res = await fetch(`/api/nhk/article?id=${article.news_id}`);
+        const res = await fetch(`/api/nhk/article?id=${article.news_id}&lang=${lang}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         setDetail(data);
@@ -213,7 +215,7 @@ export default function NHKPage() {
           fetch("/api/nhk/verb-analysis", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ articleId: article.news_id, bodyHtml: data.body }),
+            body: JSON.stringify({ articleId: article.news_id, bodyHtml: data.body, lang }),
           })
             .then((r) => r.json())
             .then((d) => { if (d.verbs?.length) setVerbAnalysis(d.verbs); })
@@ -246,8 +248,38 @@ export default function NHKPage() {
         setLoadingDetail(false);
       }
     },
-    [translateBody]
+    [translateBody, lang]
   );
+
+  /* ─── re-fetch translations & verbs when language changes ─── */
+  useEffect(() => {
+    if (!selectedId || !selectedArticle || !detail?.body) return;
+    // Re-fetch article data with new lang (for cached translations)
+    fetch(`/api/nhk/article?id=${selectedId}&lang=${lang}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.cachedTranslations?.length) {
+          setTitleTranslation(data.cachedTitleTranslation || "");
+          setTranslations(data.cachedTranslations);
+        } else {
+          translateBody(detail.body, selectedId, undefined, selectedArticle.title_with_ruby || selectedArticle.title);
+        }
+        if (data.cachedVerbAnalysis?.length) {
+          setVerbAnalysis(data.cachedVerbAnalysis);
+        } else {
+          fetch("/api/nhk/verb-analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ articleId: selectedId, bodyHtml: detail.body, lang }),
+          })
+            .then((r) => r.json())
+            .then((d) => { if (d.verbs?.length) setVerbAnalysis(d.verbs); })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
 
   /* ─── HLS audio setup ─── */
   const hlsRef = useRef<Hls | null>(null);
@@ -386,16 +418,16 @@ export default function NHKPage() {
           <span style="font-size:14px;color:#999">${verb.reading}</span>
         </div>
         <div style="font-size:14px;color:#555;margin-bottom:8px">${verb.meaning || ""}</div>
-        <div style="font-size:13px;color:#888;margin-bottom:10px;padding:3px 8px;background:#f5f5f5;border-radius:4px;display:inline-block">기사 표현: ${verb.surfaceForm}</div>
+        <div style="font-size:13px;color:#888;margin-bottom:10px;padding:3px 8px;background:#f5f5f5;border-radius:4px;display:inline-block">${lang === "en" ? "In article:" : "기사 표현:"} ${verb.surfaceForm}</div>
         <div style="font-size:13px;color:#2c6fbb;background:#f0f6ff;padding:8px 12px;border-radius:8px;margin-bottom:6px;line-height:1.5;font-weight:600">${verb.conjugationRule}</div>
         <div style="font-size:13px;color:#444;background:#fafafa;padding:8px 12px;border-radius:8px;margin-bottom:14px;line-height:1.7;border-left:3px solid #ddd">${conjDetail}</div>
         <div style="margin-bottom:10px">
-          <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:4px">같은 동사, 다른 활용</div>
+          <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:4px">${lang === "en" ? "Same verb, different form" : "같은 동사, 다른 활용"}</div>
           <div style="font-size:15px;color:#222;line-height:1.8;margin-bottom:2px">${verb.exampleSameVerb}</div>
           <div style="font-size:13px;color:#2c6fbb;line-height:1.5">${verb.exampleSameVerbKo}</div>
         </div>
         <div>
-          <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:4px">다른 동사, 같은 활용</div>
+          <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:4px">${lang === "en" ? "Different verb, same form" : "다른 동사, 같은 활용"}</div>
           <div style="font-size:15px;color:#222;line-height:1.8;margin-bottom:2px">${verb.exampleDiffVerb}</div>
           <div style="font-size:13px;color:#2c6fbb;line-height:1.5">${verb.exampleDiffVerbKo}</div>
         </div>
@@ -571,13 +603,13 @@ export default function NHKPage() {
       <div style={styles.root}>
         <div style={styles.container}>
           <button onClick={() => setSelectedId(null)} style={styles.backBtn}>
-            ← 뉴스 목록
+            {t("backToList", lang)}
           </button>
 
           {loadingDetail ? (
             <div style={styles.center}>
               <div style={styles.spinner} />
-              <p>기사 불러오는 중... (최초 로딩 시 시간이 걸릴 수 있습니다)</p>
+              <p>{t("loadingArticle", lang)}</p>
             </div>
           ) : (
             <>
@@ -649,19 +681,19 @@ export default function NHKPage() {
               <div style={styles.toggleRow}>
                 <label style={styles.toggle}>
                   <input type="checkbox" checked={showFurigana} onChange={() => setShowFurigana(!showFurigana)} />
-                  <span>후리가나</span>
+                  <span>{t("furigana", lang)}</span>
                 </label>
                 <label style={styles.toggle}>
                   <input type="checkbox" checked={showKorean} onChange={() => setShowKorean(!showKorean)} />
-                  <span>한국어 번역</span>
+                  <span>{t("translation", lang)}</span>
                 </label>
               </div>
 
               {/* color legend - NHK 3 categories */}
               <div style={styles.legend}>
-                <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: "rgb(29,177,6)" }} /> 人の名前（사람 이름）</span>
-                <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: "rgb(128,90,3)" }} /> 場所の名前（장소 이름）</span>
-                <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: "rgb(0,65,204)" }} /> 会社・グループ（회사·단체）</span>
+                <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: "rgb(29,177,6)" }} /> 人の名前（{t("personName", lang)}）</span>
+                <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: "rgb(128,90,3)" }} /> 場所の名前（{t("placeName", lang)}）</span>
+                <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: "rgb(0,65,204)" }} /> 会社・グループ（{t("companyGroup", lang)}）</span>
               </div>
 
               {/* article body — each paragraph is keyed by HTML to avoid DOM replacement */}
@@ -679,7 +711,7 @@ export default function NHKPage() {
                       />
                       {showKorean && hasContent && (
                         <div style={styles.korean}>
-                          {loadingTranslation && !korean ? "번역 중..." : korean || ""}
+                          {loadingTranslation && !korean ? t("translating", lang) : korean || ""}
                         </div>
                       )}
                     </div>
@@ -705,33 +737,47 @@ export default function NHKPage() {
     <div style={styles.root}>
       <div style={styles.container}>
         <header style={styles.header}>
+          <div style={styles.langToggle}>
+            <button
+              onClick={() => { setLang("ko"); setTranslations([]); setTitleTranslation(""); setVerbAnalysis([]); }}
+              style={{ ...styles.langBtn, ...(lang === "ko" ? styles.langBtnActive : {}) }}
+            >
+              한국어
+            </button>
+            <button
+              onClick={() => { setLang("en"); setTranslations([]); setTitleTranslation(""); setVerbAnalysis([]); }}
+              style={{ ...styles.langBtn, ...(lang === "en" ? styles.langBtnActive : {}) }}
+            >
+              English
+            </button>
+          </div>
           <h1 style={styles.title}>NHK やさしいにほんご</h1>
           <p style={styles.subtitle}>
-            매일 업데이트 되는 쉬운 일본어 뉴스를 한국어 번역과 함께 읽어보세요
+            {t("subtitle", lang)}
           </p>
           <p style={styles.countdown}>
-            다음 업데이트까지 {countdown}
+            {t("countdownPrefix", lang)} {countdown}
           </p>
           {refreshing && (
-            <p style={styles.refreshing}>오늘의 뉴스 데이터를 준비하고 있습니다...</p>
+            <p style={styles.refreshing}>{t("refreshing", lang)}</p>
           )}
         </header>
 
         {loading ? (
           <div style={styles.center}>
             <div style={styles.spinner} />
-            <p>뉴스 불러오는 중...</p>
+            <p>{t("loadingNews", lang)}</p>
           </div>
         ) : error ? (
           <div style={styles.errorBox}>
-            <p>뉴스를 불러올 수 없습니다</p>
+            <p>{t("loadError", lang)}</p>
             <p style={{ fontSize: 13, opacity: 0.7 }}>{error}</p>
             <button onClick={() => window.location.reload()} style={styles.retryBtn}>
-              다시 시도
+              {t("retry", lang)}
             </button>
           </div>
         ) : articles.length === 0 ? (
-          <p style={styles.center}>뉴스가 없습니다</p>
+          <p style={styles.center}>{t("noNews", lang)}</p>
         ) : (
           <div style={styles.cardList}>
             {articles.map((a) => {
@@ -776,7 +822,7 @@ export default function NHKPage() {
                       </p>
                     )}
                     {a.has_news_easy_voice && (
-                      <span style={styles.audioTag}>音声あり</span>
+                      <span style={styles.audioTag}>{t("audioAvailable", lang)}</span>
                     )}
                   </div>
                 </button>
@@ -787,17 +833,17 @@ export default function NHKPage() {
         {/* footer */}
         <footer style={styles.footer}>
           <p style={styles.footerMain}>
-            본 콘텐츠의 원문은{" "}
+            {t("footerProvided", lang)}{" "}
             <a href="https://www3.nhk.or.jp/news/easy/" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>
               NHK NEWS WEB EASY
             </a>
-            에서 제공됩니다.
+            {t("footerProvidedEnd", lang)}
           </p>
           <p style={styles.footerSub}>
-            한국어 번역 및 문법 분석은 일본어 학습 목적으로만 제공되며, NHK의 공식 번역이 아닙니다.
+            {t("footerDisclaimer", lang)}
           </p>
           <p style={styles.footerCopy}>
-            &copy; NHK &middot; 뉴스 저작권은 NHK에 있습니다
+            &copy; NHK &middot; {t("footerCopyright", lang)}
           </p>
         </footer>
       </div>
@@ -850,7 +896,20 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Noto Sans JP", sans-serif',
   },
   container: { maxWidth: 720, margin: "0 auto", padding: "24px 16px 60px" },
-  header: { textAlign: "center", marginBottom: 32, padding: "32px 0 24px" },
+  header: { textAlign: "center", marginBottom: 32, padding: "32px 0 24px", position: "relative" },
+  langToggle: {
+    position: "absolute" as const, top: 32, right: 0,
+    display: "flex", gap: 4, background: "#f0f2f5", borderRadius: 8, padding: 3,
+  },
+  langBtn: {
+    padding: "5px 12px", borderRadius: 6, border: "none",
+    background: "transparent", fontSize: 13, cursor: "pointer",
+    color: "#888", fontWeight: 600, font: "inherit",
+  },
+  langBtnActive: {
+    background: "#fff", color: "#1a1a2e",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+  },
   title: { fontSize: 28, fontWeight: 800, color: "#1a1a2e", marginBottom: 8 },
   subtitle: { fontSize: 14, color: "#666", lineHeight: 1.6 },
   countdown: {

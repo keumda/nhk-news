@@ -7,7 +7,7 @@ import {
   readPrompts,
   VerbAnalysisItem,
 } from "@/lib/cache";
-import { DEFAULT_VERB_ANALYSIS_PROMPT } from "@/lib/prompts";
+import { DEFAULT_VERB_ANALYSIS_PROMPT, EN_VERB_ANALYSIS_PROMPT } from "@/lib/prompts";
 
 /**
  * Extract verb/adjective candidate surface forms from NHK article HTML.
@@ -37,6 +37,7 @@ function extractVerbCandidates(bodyHtml: string): string[] {
 async function analyzeVerbs(
   bodyHtml: string,
   candidates: string[],
+  lang?: string,
 ): Promise<VerbAnalysisItem[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
@@ -48,9 +49,11 @@ async function analyzeVerbs(
 
   const numbered = candidates.map((c, i) => `[${i + 1}] ${c}`).join("\n");
 
-  // Load custom prompt or use default, then replace placeholders
+  // Load custom prompt or use default (language-specific), then replace placeholders
   const saved = await readPrompts();
-  const promptTemplate = saved?.verbAnalysisPrompt || DEFAULT_VERB_ANALYSIS_PROMPT;
+  const promptTemplate = lang === "en"
+    ? EN_VERB_ANALYSIS_PROMPT
+    : (saved?.verbAnalysisPrompt || DEFAULT_VERB_ANALYSIS_PROMPT);
   const prompt = promptTemplate
     .replace("{{plainText}}", plainText)
     .replace("{{numbered}}", numbered);
@@ -116,9 +119,10 @@ async function analyzeVerbs(
  */
 export async function POST(request: NextRequest) {
   try {
-    const { articleId, bodyHtml } = (await request.json()) as {
+    const { articleId, bodyHtml, lang } = (await request.json()) as {
       articleId: string;
       bodyHtml: string;
+      lang?: string;
     };
 
     if (!articleId || !bodyHtml) {
@@ -129,9 +133,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check cache (scan all date directories)
-    const verbDate = await findCacheDate(articleId, "verb-analysis");
+    const verbDir = lang === "en" ? "verb-analysis-en" : "verb-analysis";
+    const verbDate = await findCacheDate(articleId, verbDir);
     if (verbDate) {
-      const cached = await readVerbAnalysis(articleId, verbDate);
+      const cached = await readVerbAnalysis(articleId, verbDate, lang);
       if (cached && cached.verbs.length > 0) {
         return NextResponse.json({ verbs: cached.verbs });
       }
@@ -143,7 +148,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ verbs: [] });
     }
 
-    const verbs = await analyzeVerbs(bodyHtml, candidates);
+    const verbs = await analyzeVerbs(bodyHtml, candidates, lang);
 
     // Cache results
     if (verbs.length > 0) {
@@ -151,7 +156,7 @@ export async function POST(request: NextRequest) {
         id: articleId,
         verbs,
         fetchedAt: new Date().toISOString(),
-      }).catch(() => {});
+      }, undefined, lang).catch(() => {});
     }
 
     return NextResponse.json({ verbs });

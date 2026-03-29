@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readTranslation, writeTranslation, findCacheDate, readPrompts } from "@/lib/cache";
-import { DEFAULT_TRANSLATION_PROMPT } from "@/lib/prompts";
+import { DEFAULT_TRANSLATION_PROMPT, EN_TRANSLATION_PROMPT } from "@/lib/prompts";
 
 export async function POST(request: NextRequest) {
   try {
-    const { texts, articleId, title } = (await request.json()) as {
+    const { texts, articleId, title, lang } = (await request.json()) as {
       texts: string[];
       articleId?: string;
       title?: string;
+      lang?: string;
     };
 
     if (!texts || !Array.isArray(texts) || texts.length === 0) {
@@ -17,11 +18,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const transDir = lang === "en" ? "translations-en" : "translations";
+
     // Check file cache if articleId provided (scan all date directories)
     if (articleId) {
-      const transDate = await findCacheDate(articleId, "translations");
+      const transDate = await findCacheDate(articleId, transDir);
       if (transDate) {
-        const cached = await readTranslation(articleId, transDate);
+        const cached = await readTranslation(articleId, transDate, lang);
         if (cached && cached.translations.length >= texts.length) {
           return NextResponse.json({
             titleTranslation: cached.titleTranslation || "",
@@ -45,9 +48,11 @@ export async function POST(request: NextRequest) {
       .map((t, i) => `[${i + 1}] ${t.trim()}`)
       .join("\n");
 
-    // Load custom prompt or use default
+    // Load custom prompt or use default (language-specific)
     const saved = await readPrompts();
-    const promptTemplate = saved?.translationPrompt || DEFAULT_TRANSLATION_PROMPT;
+    const promptTemplate = lang === "en"
+      ? EN_TRANSLATION_PROMPT
+      : (saved?.translationPrompt || DEFAULT_TRANSLATION_PROMPT);
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -109,7 +114,7 @@ export async function POST(request: NextRequest) {
         texts,
         translations,
         fetchedAt: new Date().toISOString(),
-      }).catch(() => {});
+      }, undefined, lang).catch(() => {});
     }
 
     return NextResponse.json({ titleTranslation, translations });

@@ -156,22 +156,30 @@ export async function writeArticle(newsId: string, data: CachedArticle, dateStr?
 
 /* ─── translation ─── */
 
-export async function readTranslation(newsId: string, dateStr?: string): Promise<CachedTranslation | null> {
-  return readJSON<CachedTranslation>(path.join(datePath(dateStr), "translations", `${newsId}.json`));
+function translationDir(lang?: string): string {
+  return lang === "en" ? "translations-en" : "translations";
 }
 
-export async function writeTranslation(newsId: string, data: CachedTranslation, dateStr?: string): Promise<void> {
-  await writeJSON(path.join(datePath(dateStr), "translations", `${newsId}.json`), data);
+export async function readTranslation(newsId: string, dateStr?: string, lang?: string): Promise<CachedTranslation | null> {
+  return readJSON<CachedTranslation>(path.join(datePath(dateStr), translationDir(lang), `${newsId}.json`));
+}
+
+export async function writeTranslation(newsId: string, data: CachedTranslation, dateStr?: string, lang?: string): Promise<void> {
+  await writeJSON(path.join(datePath(dateStr), translationDir(lang), `${newsId}.json`), data);
 }
 
 /* ─── verb analysis ─── */
 
-export async function readVerbAnalysis(newsId: string, dateStr?: string): Promise<CachedVerbAnalysis | null> {
-  return readJSON<CachedVerbAnalysis>(path.join(datePath(dateStr), "verb-analysis", `${newsId}.json`));
+function verbAnalysisDir(lang?: string): string {
+  return lang === "en" ? "verb-analysis-en" : "verb-analysis";
 }
 
-export async function writeVerbAnalysis(newsId: string, data: CachedVerbAnalysis, dateStr?: string): Promise<void> {
-  await writeJSON(path.join(datePath(dateStr), "verb-analysis", `${newsId}.json`), data);
+export async function readVerbAnalysis(newsId: string, dateStr?: string, lang?: string): Promise<CachedVerbAnalysis | null> {
+  return readJSON<CachedVerbAnalysis>(path.join(datePath(dateStr), verbAnalysisDir(lang), `${newsId}.json`));
+}
+
+export async function writeVerbAnalysis(newsId: string, data: CachedVerbAnalysis, dateStr?: string, lang?: string): Promise<void> {
+  await writeJSON(path.join(datePath(dateStr), verbAnalysisDir(lang), `${newsId}.json`), data);
 }
 
 /* ─── audio ─── */
