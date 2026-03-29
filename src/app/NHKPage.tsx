@@ -804,12 +804,19 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
                   {imgSrc && (
                     <div style={styles.cardImgWrap}>
                       <img
-                        src={proxyUrl(imgSrc)}
+                        src={`/api/nhk/image?id=${a.news_id}`}
                         alt=""
                         style={styles.cardImg}
                         onError={(e) => {
-                          const wrapper = (e.currentTarget as HTMLImageElement).parentElement;
-                          if (wrapper) wrapper.style.display = "none";
+                          const img = e.currentTarget as HTMLImageElement;
+                          // Fallback to proxy if local cache miss
+                          if (!img.dataset.fallback) {
+                            img.dataset.fallback = "1";
+                            img.src = proxyUrl(imgSrc);
+                          } else {
+                            const wrapper = img.parentElement;
+                            if (wrapper) wrapper.style.display = "none";
+                          }
                         }}
                       />
                     </div>

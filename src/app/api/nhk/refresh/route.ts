@@ -431,7 +431,36 @@ export async function POST() {
           }
         }
 
-        // 2d. Audio — download as MP3 locally
+        // 2d. Thumbnail — download image locally
+        const imgUrl = (article.news_easy_image_uri || article.news_web_image_uri || "") as string;
+        if (imgUrl) {
+          try {
+            const fs = require("fs");
+            const path = require("path");
+            const imgDir = path.join(process.cwd(), "data/cache", dateStr, "images");
+            const ext = imgUrl.match(/\.(jpg|jpeg|png|gif|webp)/i)?.[0] || ".jpg";
+            const imgPath = path.join(imgDir, `${id}${ext}`);
+            if (!fs.existsSync(imgPath) || fs.statSync(imgPath).size < 500) {
+              fs.mkdirSync(imgDir, { recursive: true });
+              const imgRes = await fetch(imgUrl, {
+                headers: {
+                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                  Referer: "https://news.web.nhk/",
+                  Cookie: cookies,
+                },
+              });
+              if (imgRes.ok) {
+                const buf = Buffer.from(await imgRes.arrayBuffer());
+                fs.writeFileSync(imgPath, buf);
+                console.log(`[refresh] Image cached: ${id} (${Math.round(buf.length / 1024)}KB)`);
+              }
+            }
+          } catch (imgErr) {
+            console.error(`[refresh] Image cache failed for ${id}:`, imgErr instanceof Error ? imgErr.message : String(imgErr));
+          }
+        }
+
+        // 2e. Audio — download as MP3 locally
         if (article.has_news_easy_voice && article.news_easy_voice_uri) {
           const voiceId = article.news_easy_voice_uri as string;
           const mp3Path = await downloadAudioMp3(id, voiceId, dateStr);
