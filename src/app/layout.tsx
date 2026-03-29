@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import FeedbackWidget from "@/components/FeedbackWidget";
 import VisitorCounter from "@/components/VisitorCounter";
 
 export const metadata: Metadata = {
@@ -38,7 +37,6 @@ export default function RootLayout({
     <html lang="ko" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
         {children}
-        <FeedbackWidget />
         <VisitorCounter />
       </body>
     </html>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import Hls from "hls.js";
 import { t, Lang } from "@/lib/i18n";
+import FeedbackWidget from "@/components/FeedbackWidget";
 
 /* ─── StableHTML: renders HTML once via ref, survives parent re-renders ─── */
 const StableHTML = memo(function StableHTML({ html, className }: { html: string; className: string }) {
@@ -727,6 +728,7 @@ export default function NHKPage() {
             </>
           )}
         </div>
+        <FeedbackWidget lang={lang} />
         <style suppressHydrationWarning>{globalCSS}</style>
       </div>
     );
@@ -847,6 +849,7 @@ export default function NHKPage() {
           </p>
         </footer>
       </div>
+      <FeedbackWidget lang={lang} />
       <style suppressHydrationWarning>{globalCSS}</style>
     </div>
   );

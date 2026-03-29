@@ -1,15 +1,38 @@
 "use client";
 
 import { useState, useEffect, type CSSProperties } from "react";
+import type { Lang } from "@/lib/i18n";
 
 type Status = "idle" | "sending" | "success" | "error";
 
-export default function FeedbackWidget() {
+const text = {
+  fabLabel: { ko: "피드백 보내기", en: "Send Feedback" },
+  close: { ko: "닫기", en: "Close" },
+  title: { ko: "피드백 보내기", en: "Send Feedback" },
+  subtitle: { ko: "개선 아이디어나 버그를 알려주세요", en: "Share ideas or report bugs" },
+  categoryLabel: { ko: "분류", en: "Category" },
+  catFeature: { ko: "기능 요청", en: "Feature Request" },
+  catBug: { ko: "버그 신고", en: "Bug Report" },
+  catOther: { ko: "기타", en: "Other" },
+  contentLabel: { ko: "내용", en: "Message" },
+  placeholder: { ko: "자유롭게 작성해주세요...", en: "Write your feedback here..." },
+  sending: { ko: "전송 중...", en: "Sending..." },
+  submit: { ko: "보내기", en: "Submit" },
+  success: { ko: "감사합니다! 소중한 의견이 전달되었습니다.", en: "Thank you! Your feedback has been submitted." },
+  error: { ko: "전송에 실패했습니다. 다시 시도해주세요.", en: "Failed to send. Please try again." },
+} as const;
+
+export default function FeedbackWidget({ lang = "ko" }: { lang?: Lang }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [category, setCategory] = useState("기능 요청");
+  const [category, setCategory] = useState<string>(text.catFeature[lang]);
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [isMobile, setIsMobile] = useState(false);
+
+  // Update category when language changes
+  useEffect(() => {
+    setCategory(text.catFeature[lang]);
+  }, [lang]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 420);
@@ -37,7 +60,7 @@ export default function FeedbackWidget() {
       if (!res.ok) throw new Error();
       setStatus("success");
       setMessage("");
-      setCategory("기능 요청");
+      setCategory(text.catFeature[lang]);
       setTimeout(() => {
         setIsOpen(false);
         setStatus("idle");
@@ -59,7 +82,7 @@ export default function FeedbackWidget() {
           ...s.fab,
           ...(isOpen ? s.fabOpen : {}),
         }}
-        aria-label={isOpen ? "닫기" : "피드백 보내기"}
+        aria-label={isOpen ? text.close[lang] : text.fabLabel[lang]}
       >
         {isOpen ? "✕" : "💬"}
       </button>
@@ -75,25 +98,25 @@ export default function FeedbackWidget() {
           pointerEvents: isOpen ? "auto" : "none",
         }}
       >
-        <h3 style={s.title}>피드백 보내기</h3>
-        <p style={s.subtitle}>개선 아이디어나 버그를 알려주세요</p>
+        <h3 style={s.title}>{text.title[lang]}</h3>
+        <p style={s.subtitle}>{text.subtitle[lang]}</p>
 
-        <label style={s.label}>분류</label>
+        <label style={s.label}>{text.categoryLabel[lang]}</label>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
           style={s.select}
         >
-          <option>기능 요청</option>
-          <option>버그 신고</option>
-          <option>기타</option>
+          <option>{text.catFeature[lang]}</option>
+          <option>{text.catBug[lang]}</option>
+          <option>{text.catOther[lang]}</option>
         </select>
 
-        <label style={s.label}>내용</label>
+        <label style={s.label}>{text.contentLabel[lang]}</label>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="자유롭게 작성해주세요..."
+          placeholder={text.placeholder[lang]}
           rows={4}
           style={s.textarea}
         />
@@ -106,14 +129,14 @@ export default function FeedbackWidget() {
             opacity: status === "sending" || !message.trim() ? 0.6 : 1,
           }}
         >
-          {status === "sending" ? "전송 중..." : "보내기"}
+          {status === "sending" ? text.sending[lang] : text.submit[lang]}
         </button>
 
         {status === "success" && (
-          <p style={s.success}>감사합니다! 소중한 의견이 전달되었습니다.</p>
+          <p style={s.success}>{text.success[lang]}</p>
         )}
         {status === "error" && (
-          <p style={s.error}>전송에 실패했습니다. 다시 시도해주세요.</p>
+          <p style={s.error}>{text.error[lang]}</p>
         )}
       </div>
     </>
