@@ -748,18 +748,17 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
     <div style={styles.root}>
       <div style={styles.container}>
         <header style={styles.header}>
-          <div style={styles.headerTop}>
-            <div />
-            <h1 style={styles.title}>NHK やさしいにほんご</h1>
+          <div style={styles.langRow}>
             <select
               value={lang}
               onChange={(e) => { setLang(e.target.value as Lang); setTranslations([]); setTitleTranslation(""); setVerbAnalysis([]); }}
-              style={styles.langSelect}
+              className="lang-select"
             >
               <option value="ko">🇰🇷 한국어</option>
               <option value="en">🇺🇸 English</option>
             </select>
           </div>
+          <h1 style={styles.title}>NHK やさしいにほんご</h1>
           <p style={styles.subtitle}>
             {t("subtitle", lang)}
           </p>
@@ -898,6 +897,23 @@ const globalCSS = `
   .verb-hover { cursor: help; transition: background 0.15s; border-radius: 3px; padding: 1px 3px; background: rgba(0,0,0,0.08); border-bottom: 1px dashed rgba(0,0,0,0.25); }
   .verb-hover:hover { background: rgba(52, 152, 219, 0.2); border-bottom-color: rgba(52, 152, 219, 0.5); }
   .verb-active { background: rgba(52, 152, 219, 0.25) !important; border-bottom-color: #3498db !important; }
+  .lang-select {
+    padding: 6px 28px 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #fff;
+    font-size: 13px;
+    color: #333;
+    font-weight: 600;
+    cursor: pointer;
+    font: inherit;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* Sticky audio player on mobile */
@@ -924,20 +940,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   container: { maxWidth: 720, margin: "0 auto", padding: "24px 16px 60px" },
   header: { textAlign: "center", marginBottom: 32, padding: "24px 0" },
-  headerTop: {
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    marginBottom: 8, gap: 8,
+  langRow: {
+    display: "flex", justifyContent: "flex-end", marginBottom: 12,
   },
-  langSelect: {
-    padding: "6px 28px 6px 10px", borderRadius: 8, border: "1px solid #ddd",
-    background: "#fff", fontSize: 13, color: "#333", fontWeight: 600,
-    cursor: "pointer", font: "inherit", flexShrink: 0,
-    WebkitAppearance: "none" as const, MozAppearance: "none" as const, appearance: "none" as const,
-    backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "right 10px center",
-  },
-  title: { fontSize: 24, fontWeight: 800, color: "#1a1a2e", flex: 1, textAlign: "center" as const },
+  title: { fontSize: 28, fontWeight: 800, color: "#1a1a2e", marginBottom: 8 },
   subtitle: { fontSize: 14, color: "#666", lineHeight: 1.6 },
   countdown: {
     fontSize: 13, color: "#3498db", marginTop: 10,
