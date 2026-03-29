@@ -756,8 +756,8 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
               onChange={(e) => { setLang(e.target.value as Lang); setTranslations([]); setTitleTranslation(""); setVerbAnalysis([]); }}
               style={styles.langSelect}
             >
-              <option value="ko">한국어</option>
-              <option value="en">English</option>
+              <option value="ko">🇰🇷 한국어</option>
+              <option value="en">🇺🇸 English</option>
             </select>
           </div>
           <p style={styles.subtitle}>
