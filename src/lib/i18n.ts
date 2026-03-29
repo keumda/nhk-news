@@ -10,6 +10,10 @@ const dict = {
     ko: "다음 업데이트까지",
     en: "Next update in",
   },
+  weekendNotice: {
+    ko: "주말에는 NHK 뉴스가 업데이트되지 않습니다",
+    en: "NHK news is not updated on weekends",
+  },
   countdownHour: { ko: "시간", en: "h" },
   countdownMin: { ko: "분", en: "m" },
   countdownSec: { ko: "초", en: "s" },

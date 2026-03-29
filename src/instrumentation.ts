@@ -3,9 +3,9 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const cron = await import("node-cron");
 
-    // 매일 JST 19:35 (NHK 뉴스 19:30 업데이트 후)
+    // 평일(월~금) JST 19:35 (NHK 뉴스 19:30 업데이트 후, 주말 제외)
     cron.default.schedule(
-      "35 19 * * *",
+      "35 19 * * 1-5",
       async () => {
         console.log("[cron] Triggering daily refresh...");
         try {
@@ -23,6 +23,6 @@ export async function register() {
       { timezone: "Asia/Tokyo" }
     );
 
-    console.log("[cron] Scheduled daily refresh at 19:35 JST");
+    console.log("[cron] Scheduled weekday refresh at 19:35 JST (Mon-Fri)");
   }
 }

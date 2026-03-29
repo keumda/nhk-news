@@ -56,8 +56,8 @@ const proxyUrl = (url: string) =>
   url ? `/api/nhk/proxy?url=${encodeURIComponent(url)}` : "";
 
 /* ─────────────────────────── main page ─────────────────────────── */
-export default function NHKPage() {
-  const [lang, setLang] = useState<Lang>("ko");
+export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } = {}) {
+  const [lang, setLang] = useState<Lang>(initialLang);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -77,6 +77,7 @@ export default function NHKPage() {
   const bodyRef = useRef<HTMLDivElement>(null);
 
   const [countdown, setCountdown] = useState("");
+  const [isWeekend, setIsWeekend] = useState(false);
 
   const [showFurigana, setShowFurigana] = useState(true);
   const [showKorean, setShowKorean] = useState(true);
@@ -87,15 +88,22 @@ export default function NHKPage() {
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  /* ─── countdown to next 19:35 JST ─── */
+  /* ─── countdown to next 19:35 JST (skip weekends) ─── */
   useEffect(() => {
     const tick = () => {
       const now = new Date();
       const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
       const target = new Date(jst);
       target.setUTCHours(19, 35, 0, 0);
-      // If already past 19:35 JST today, target tomorrow
+      // If already past 19:35 JST today, start from tomorrow
       if (jst.getTime() >= target.getTime()) target.setUTCDate(target.getUTCDate() + 1);
+      // Check if today (JST) is weekend
+      const jstDay = jst.getUTCDay();
+      setIsWeekend(jstDay === 0 || jstDay === 6);
+      // Skip weekends: Sat(6) → Mon, Sun(0) → Mon
+      const day = target.getUTCDay();
+      if (day === 6) target.setUTCDate(target.getUTCDate() + 2);
+      else if (day === 0) target.setUTCDate(target.getUTCDate() + 1);
       const diff = target.getTime() - jst.getTime();
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
@@ -760,6 +768,9 @@ export default function NHKPage() {
           <p style={styles.countdown}>
             {t("countdownPrefix", lang)} {countdown}
           </p>
+          {isWeekend && (
+            <p style={styles.weekendNotice}>{t("weekendNotice", lang)}</p>
+          )}
           {refreshing && (
             <p style={styles.refreshing}>{t("refreshing", lang)}</p>
           )}
@@ -919,6 +930,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13, color: "#3498db", marginTop: 10,
     padding: "6px 16px", background: "#ebf5fb", borderRadius: 8,
     display: "inline-block", fontVariantNumeric: "tabular-nums", fontWeight: 600,
+  },
+  weekendNotice: {
+    fontSize: 12, color: "#e67e22", marginTop: 6,
+    padding: "4px 12px", background: "#fef9e7", borderRadius: 6,
+    display: "inline-block",
   },
 
   cardList: { display: "flex", flexDirection: "column", gap: 12 },
