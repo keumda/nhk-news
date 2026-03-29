@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import Hls from "hls.js";
 import { t, Lang } from "@/lib/i18n";
 import FeedbackWidget from "@/components/FeedbackWidget";
+import VisitorCounter from "@/components/VisitorCounter";
 
 /* ─── StableHTML: renders HTML once via ref, survives parent re-renders ─── */
 const StableHTML = memo(function StableHTML({ html, className }: { html: string; className: string }) {
@@ -639,9 +640,9 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
                 {selectedArticle.news_prearranged_time}
               </p>
 
-              {/* audio player */}
+              {/* audio player — sticky on mobile */}
               {audioUrl && (
-                <div style={styles.audioCard}>
+                <div className="audio-sticky" style={styles.audioCard}>
                   <audio
                     ref={audioRef}
                     crossOrigin="anonymous"
@@ -747,21 +748,18 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
     <div style={styles.root}>
       <div style={styles.container}>
         <header style={styles.header}>
-          <div style={styles.langToggle}>
-            <button
-              onClick={() => { setLang("ko"); setTranslations([]); setTitleTranslation(""); setVerbAnalysis([]); }}
-              style={{ ...styles.langBtn, ...(lang === "ko" ? styles.langBtnActive : {}) }}
+          <div style={styles.headerTop}>
+            <div />
+            <h1 style={styles.title}>NHK やさしいにほんご</h1>
+            <select
+              value={lang}
+              onChange={(e) => { setLang(e.target.value as Lang); setTranslations([]); setTitleTranslation(""); setVerbAnalysis([]); }}
+              style={styles.langSelect}
             >
-              한국어
-            </button>
-            <button
-              onClick={() => { setLang("en"); setTranslations([]); setTitleTranslation(""); setVerbAnalysis([]); }}
-              style={{ ...styles.langBtn, ...(lang === "en" ? styles.langBtnActive : {}) }}
-            >
-              English
-            </button>
+              <option value="ko">한국어</option>
+              <option value="en">English</option>
+            </select>
           </div>
-          <h1 style={styles.title}>NHK やさしいにほんご</h1>
           <p style={styles.subtitle}>
             {t("subtitle", lang)}
           </p>
@@ -858,6 +856,7 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
           <p style={styles.footerCopy}>
             &copy; NHK &middot; {t("footerCopyright", lang)}
           </p>
+          <p style={styles.footerVisitor}><VisitorCounter /></p>
         </footer>
       </div>
       <FeedbackWidget lang={lang} />
@@ -900,6 +899,20 @@ const globalCSS = `
   .verb-hover:hover { background: rgba(52, 152, 219, 0.2); border-bottom-color: rgba(52, 152, 219, 0.5); }
   .verb-active { background: rgba(52, 152, 219, 0.25) !important; border-bottom-color: #3498db !important; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Sticky audio player on mobile */
+  @media (max-width: 640px) {
+    .audio-sticky {
+      position: sticky;
+      top: 0;
+      border-radius: 0 0 12px 12px !important;
+      margin-left: -16px;
+      margin-right: -16px;
+      padding-left: 16px;
+      padding-right: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+  }
 `;
 
 /* ═══════════════════ styles ═══════════════════ */
@@ -910,21 +923,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Noto Sans JP", sans-serif',
   },
   container: { maxWidth: 720, margin: "0 auto", padding: "24px 16px 60px" },
-  header: { textAlign: "center", marginBottom: 32, padding: "32px 0 24px", position: "relative" },
-  langToggle: {
-    position: "absolute" as const, top: 32, right: 0,
-    display: "flex", gap: 4, background: "#f0f2f5", borderRadius: 8, padding: 3,
+  header: { textAlign: "center", marginBottom: 32, padding: "24px 0" },
+  headerTop: {
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 8, gap: 8,
   },
-  langBtn: {
-    padding: "5px 12px", borderRadius: 6, border: "none",
-    background: "transparent", fontSize: 13, cursor: "pointer",
-    color: "#888", fontWeight: 600, font: "inherit",
+  langSelect: {
+    padding: "6px 10px", borderRadius: 8, border: "1px solid #ddd",
+    background: "#fff", fontSize: 13, color: "#333", fontWeight: 600,
+    cursor: "pointer", font: "inherit", flexShrink: 0,
   },
-  langBtnActive: {
-    background: "#fff", color: "#1a1a2e",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-  },
-  title: { fontSize: 28, fontWeight: 800, color: "#1a1a2e", marginBottom: 8 },
+  title: { fontSize: 24, fontWeight: 800, color: "#1a1a2e", flex: 1, textAlign: "center" as const },
   subtitle: { fontSize: 14, color: "#666", lineHeight: 1.6 },
   countdown: {
     fontSize: 13, color: "#3498db", marginTop: 10,
@@ -966,6 +975,7 @@ const styles: Record<string, React.CSSProperties> = {
   audioCard: {
     background: "#fff", borderRadius: 12, padding: 16, marginBottom: 16,
     border: "1px solid #e8e8e8", boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+    zIndex: 50,
   },
   audioControls: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 },
   playBtn: {
@@ -1039,10 +1049,13 @@ const styles: Record<string, React.CSSProperties> = {
   footerCopy: {
     fontSize: 11, color: "#bbb", margin: 0,
   },
+  footerVisitor: {
+    marginTop: 12, marginBottom: 0,
+  },
 
   /* verb popover (positioned via JS) */
   popover: {
-    position: "fixed" as const, width: 360, background: "#fff", borderRadius: 14,
+    position: "fixed" as const, width: "min(360px, calc(100vw - 24px))", background: "#fff", borderRadius: 14,
     border: "1px solid #e0e0e0", boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
     padding: 18, zIndex: 1000, maxHeight: 420, overflow: "visible",
   },

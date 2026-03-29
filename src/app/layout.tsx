@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import VisitorCounter from "@/components/VisitorCounter";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -37,7 +36,6 @@ export default function RootLayout({
     <html lang="ko" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
         {children}
-        <VisitorCounter />
       </body>
     </html>
   );

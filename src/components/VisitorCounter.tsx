@@ -15,16 +15,8 @@ export default function VisitorCounter() {
   if (!counts) return null;
 
   return (
-    <div style={{
-      position: "fixed",
-      bottom: 12,
-      left: 12,
-      fontSize: 11,
-      color: "#aaa",
-      fontFamily: "-apple-system, sans-serif",
-      zIndex: 900,
-    }}>
+    <span style={{ fontSize: 11, color: "#bbb" }}>
       today {counts.daily.toLocaleString()} · total {counts.total.toLocaleString()}
-    </div>
+    </span>
   );
 }
