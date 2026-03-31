@@ -89,14 +89,14 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  /* ─── countdown to next 19:35 JST (skip weekends) ─── */
+  /* ─── countdown to next 20:30 JST (skip weekends) ─── */
   useEffect(() => {
     const tick = () => {
       const now = new Date();
       const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
       const target = new Date(jst);
-      target.setUTCHours(19, 35, 0, 0);
-      // If already past 19:35 JST today, start from tomorrow
+      target.setUTCHours(20, 30, 0, 0);
+      // If already past 20:30 JST today, start from tomorrow
       if (jst.getTime() >= target.getTime()) target.setUTCDate(target.getUTCDate() + 1);
       // Check if today (JST) is weekend
       const jstDay = jst.getUTCDay();
