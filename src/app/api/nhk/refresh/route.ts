@@ -207,25 +207,21 @@ async function analyzeVerbsForRefresh(bodyHtml: string): Promise<VerbAnalysisIte
     const parsed = JSON.parse(jsonStr);
     if (!Array.isArray(parsed)) return [];
     // Strip trailing/leading particles from surfaceForm
-    const TRAILING_PARTICLES = ["から","まで","は","が","を","に","で","と","も","の","へ","や"];
-    const LEADING_PARTICLES = ["に","を","が","は","で","と","も"];
-    return parsed
-      .map((v: Record<string, unknown>) => {
-        if (typeof v.surfaceForm !== "string") return v;
-        let sf = v.surfaceForm as string;
-        for (const p of TRAILING_PARTICLES) {
-          if (sf.endsWith(p) && sf.length > p.length) { sf = sf.slice(0, -p.length); break; }
-        }
-        for (const p of LEADING_PARTICLES) {
-          if (sf.startsWith(p) && sf.length > p.length) { sf = sf.slice(p.length); break; }
-        }
-        return { ...v, surfaceForm: sf };
-      })
-      .filter(
-        (v: Record<string, unknown>) =>
-          v.surfaceForm && v.dictionaryForm && v.reading && v.meaning &&
-          typeof v.surfaceForm === "string" && plainText.includes(v.surfaceForm as string),
-      ) as VerbAnalysisItem[];
+    const TRAILING = ["から","まで","は","が","を","に","で","と","も","の","へ","や"];
+    const LEADING = ["に","を","が","は","で","と","も"];
+    for (const v of parsed) {
+      if (typeof v.surfaceForm === "string") {
+        let sf = v.surfaceForm;
+        for (const p of TRAILING) { if (sf.endsWith(p) && sf.length > p.length) { sf = sf.slice(0, -p.length); break; } }
+        for (const p of LEADING) { if (sf.startsWith(p) && sf.length > p.length) { sf = sf.slice(p.length); break; } }
+        v.surfaceForm = sf;
+      }
+    }
+    return parsed.filter(
+      (v: Record<string, unknown>) =>
+        v.surfaceForm && v.dictionaryForm && v.reading && v.meaning &&
+        typeof v.surfaceForm === "string" && plainText.includes(v.surfaceForm as string),
+    ) as unknown as VerbAnalysisItem[];
   } catch {
     return [];
   }
