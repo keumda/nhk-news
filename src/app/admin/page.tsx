@@ -109,14 +109,14 @@ export default function AdminPage() {
 
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>동사 분석 프롬프트</h2>
+          <h2 style={styles.sectionTitle}>단어 분석 프롬프트</h2>
           <button onClick={() => handleReset("verb")} style={styles.resetBtn}>
             기본값 복원
           </button>
         </div>
         <p style={styles.hint}>
-          동사/형용사를 분석할 때 사용됩니다. <code style={styles.code}>{"{{plainText}}"}</code>는 기사 본문,{" "}
-          <code style={styles.code}>{"{{numbered}}"}</code>는 동사 후보 목록으로 자동 치환됩니다.
+          동사/형용사/한자 등을 분석할 때 사용됩니다. <code style={styles.code}>{"{{plainText}}"}</code>는 기사 본문,{" "}
+          <code style={styles.code}>{"{{numbered}}"}</code>는 분석 후보 목록으로 자동 치환됩니다.
         </p>
         <textarea
           value={verbAnalysisPrompt}
