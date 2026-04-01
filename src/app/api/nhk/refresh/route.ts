@@ -296,12 +296,10 @@ export async function POST(request: Request) {
   const dateStr = todayJST();
   const errors: string[] = [];
 
-  // Parse force flag from request body (optional)
-  let forceVerbs = false;
-  try {
-    const body = await request.json();
-    forceVerbs = !!body?.forceVerbs;
-  } catch { /* no body or invalid JSON — ignore */ }
+  // Parse force flag from URL query param: ?forceVerbs=true
+  const url = new URL(request.url);
+  const forceVerbs = url.searchParams.get("forceVerbs") === "true";
+  console.log(`[refresh] forceVerbs=${forceVerbs}`);
 
   try {
     // Clean old caches
