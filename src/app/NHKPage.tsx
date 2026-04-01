@@ -666,63 +666,65 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
                 {selectedArticle.news_prearranged_time}
               </p>
 
-              {/* audio player — sticky on mobile */}
-              {audioUrl && (
-                <div className="audio-sticky" style={styles.audioCard}>
-                  <audio
-                    ref={audioRef}
-                    crossOrigin="anonymous"
-                    onTimeUpdate={() => {
-                      const a = audioRef.current;
-                      if (!a) return;
-                      setAudioCurrentTime(a.currentTime);
-                      setAudioProgress(a.duration ? a.currentTime / a.duration : 0);
-                    }}
-                    onLoadedMetadata={() => {
-                      const a = audioRef.current;
-                      if (a) setAudioDuration(a.duration);
-                    }}
-                    onEnded={() => setIsPlaying(false)}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                  />
-                  <div style={styles.audioControls}>
-                    <button onClick={() => skipAudio(-10)} style={styles.skipBtn}>-10s</button>
-                    <button onClick={togglePlay} style={styles.playBtn}>
-                      {isPlaying ? "⏸" : "▶"}
-                    </button>
-                    <button onClick={() => skipAudio(10)} style={styles.skipBtn}>+10s</button>
-                    <span style={styles.timeText}>
-                      {fmt(audioCurrentTime)} / {fmt(audioDuration || 0)}
-                    </span>
-                  </div>
-                  <div style={styles.progressBar} onClick={seekAudio}>
-                    <div style={{ ...styles.progressFill, width: `${audioProgress * 100}%` }} />
-                  </div>
-                  <div style={styles.speedRow}>
-                    {SPEEDS.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setSpeed(s)}
-                        style={{ ...styles.speedBtn, ...(speed === s ? styles.speedBtnActive : {}) }}
-                      >
-                        {s}x
+              {/* audio player + toggles — sticky on mobile */}
+              <div className="audio-sticky" style={audioUrl ? styles.audioCard : styles.toggleOnlyCard}>
+                {audioUrl && (
+                  <>
+                    <audio
+                      ref={audioRef}
+                      crossOrigin="anonymous"
+                      onTimeUpdate={() => {
+                        const a = audioRef.current;
+                        if (!a) return;
+                        setAudioCurrentTime(a.currentTime);
+                        setAudioProgress(a.duration ? a.currentTime / a.duration : 0);
+                      }}
+                      onLoadedMetadata={() => {
+                        const a = audioRef.current;
+                        if (a) setAudioDuration(a.duration);
+                      }}
+                      onEnded={() => setIsPlaying(false)}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                    />
+                    <div style={styles.audioControls}>
+                      <button onClick={() => skipAudio(-10)} style={styles.skipBtn}>-10s</button>
+                      <button onClick={togglePlay} style={styles.playBtn}>
+                        {isPlaying ? "⏸" : "▶"}
                       </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+                      <button onClick={() => skipAudio(10)} style={styles.skipBtn}>+10s</button>
+                      <span style={styles.timeText}>
+                        {fmt(audioCurrentTime)} / {fmt(audioDuration || 0)}
+                      </span>
+                    </div>
+                    <div style={styles.progressBar} onClick={seekAudio}>
+                      <div style={{ ...styles.progressFill, width: `${audioProgress * 100}%` }} />
+                    </div>
+                    <div style={styles.speedRow}>
+                      {SPEEDS.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setSpeed(s)}
+                          style={{ ...styles.speedBtn, ...(speed === s ? styles.speedBtnActive : {}) }}
+                        >
+                          {s}x
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
 
-              {/* toggles */}
-              <div style={styles.toggleRow}>
-                <label style={styles.toggle}>
-                  <input type="checkbox" checked={showFurigana} onChange={() => setShowFurigana(!showFurigana)} />
-                  <span>{t("furigana", lang)}</span>
-                </label>
-                <label style={styles.toggle}>
-                  <input type="checkbox" checked={showKorean} onChange={() => setShowKorean(!showKorean)} />
-                  <span>{t("translation", lang)}</span>
-                </label>
+                {/* toggles */}
+                <div style={styles.toggleRow}>
+                  <label style={styles.toggle}>
+                    <input type="checkbox" checked={showFurigana} onChange={() => setShowFurigana(!showFurigana)} />
+                    <span>{t("furigana", lang)}</span>
+                  </label>
+                  <label style={styles.toggle}>
+                    <input type="checkbox" checked={showKorean} onChange={() => setShowKorean(!showKorean)} />
+                    <span>{t("translation", lang)}</span>
+                  </label>
+                </div>
               </div>
 
               {/* color legend - NHK 3 categories */}
@@ -1020,6 +1022,11 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #e8e8e8", boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
     zIndex: 50,
   },
+  toggleOnlyCard: {
+    background: "#fff", borderRadius: 12, padding: "12px 16px", marginBottom: 16,
+    border: "1px solid #e8e8e8", boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+    zIndex: 50,
+  },
   audioControls: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 },
   playBtn: {
     width: 44, height: 44, borderRadius: "50%", border: "none", background: "#3498db",
@@ -1048,7 +1055,7 @@ const styles: Record<string, React.CSSProperties> = {
   legendItem: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#555" },
   legendDot: { width: 10, height: 10, borderRadius: "50%", background: "#805a03", flexShrink: 0 },
 
-  toggleRow: { display: "flex", gap: 16, marginBottom: 20 },
+  toggleRow: { display: "flex", gap: 16, marginTop: 8, marginBottom: 0 },
   toggle: { display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: "#555", cursor: "pointer", userSelect: "none" },
 
   articleBody: {
