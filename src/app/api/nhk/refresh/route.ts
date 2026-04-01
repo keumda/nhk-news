@@ -166,10 +166,10 @@ async function analyzeVerbsForRefresh(bodyHtml: string): Promise<VerbAnalysisIte
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return [];
 
-  // Extract verb candidates from color3/color4 spans
+  // Extract candidates from all color-coded spans
   const $ = cheerio.load(bodyHtml);
   const candidates = new Set<string>();
-  $("span.color3, span.color4").each((_, el) => {
+  $("span.color0, span.color1, span.color2, span.color3, span.color4, span.color5").each((_, el) => {
     const clone = $(el).clone();
     clone.find("rt").remove();
     const text = clone.text().trim();
@@ -220,8 +220,7 @@ async function analyzeVerbsForRefresh(bodyHtml: string): Promise<VerbAnalysisIte
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (v: Record<string, unknown>) =>
-        v.surfaceForm && v.dictionaryForm && v.reading && v.meaning &&
-        v.conjugationRule && v.conjugationDetail && v.exampleSameVerb && v.exampleDiffVerb,
+        v.surfaceForm && v.dictionaryForm && v.reading && v.meaning,
     ) as VerbAnalysisItem[];
   } catch {
     return [];

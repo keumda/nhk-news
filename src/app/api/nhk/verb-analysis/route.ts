@@ -18,7 +18,7 @@ function extractVerbCandidates(bodyHtml: string): string[] {
   const $ = cheerio.load(bodyHtml);
   const candidates = new Set<string>();
 
-  $("span.color3, span.color4").each((_, el) => {
+  $("span.color0, span.color1, span.color2, span.color3, span.color4, span.color5").each((_, el) => {
     // Clone and remove rt tags to get kanji + okurigana
     const clone = $(el).clone();
     clone.find("rt").remove();
@@ -95,17 +95,10 @@ async function analyzeVerbs(
     const parsed = JSON.parse(jsonStr);
     if (!Array.isArray(parsed)) return [];
 
-    // Validate each entry
+    // Validate each entry (core fields required, rest optional)
     return parsed.filter(
       (v: Record<string, unknown>) =>
-        v.surfaceForm &&
-        v.dictionaryForm &&
-        v.reading &&
-        v.meaning &&
-        v.conjugationRule &&
-        v.conjugationDetail &&
-        v.exampleSameVerb &&
-        v.exampleDiffVerb,
+        v.surfaceForm && v.dictionaryForm && v.reading && v.meaning,
     ) as VerbAnalysisItem[];
   } catch (e) {
     console.error("Failed to parse verb analysis JSON:", e);

@@ -34,6 +34,14 @@ export interface CachedAudio {
   fetchedAt: string;
 }
 
+export interface KanjiDetail {
+  kanji: string;
+  meaning: string;
+  reading: string;
+  similar: string;
+  mnemonic: string;
+}
+
 export interface VerbAnalysisItem {
   surfaceForm: string;
   dictionaryForm: string;
@@ -41,6 +49,7 @@ export interface VerbAnalysisItem {
   meaning: string;
   conjugationRule: string;
   conjugationDetail: string;
+  kanjiAnalysis?: KanjiDetail[];
   exampleSameVerb: string;
   exampleSameVerbKo: string;
   exampleDiffVerb: string;

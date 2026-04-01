@@ -37,6 +37,14 @@ interface ArticleDetail {
   paragraphCount: number;
 }
 
+interface KanjiDetail {
+  kanji: string;
+  meaning: string;
+  reading: string;
+  similar: string;
+  mnemonic: string;
+}
+
 interface VerbAnalysisItem {
   surfaceForm: string;
   dictionaryForm: string;
@@ -44,6 +52,7 @@ interface VerbAnalysisItem {
   meaning: string;
   conjugationRule: string;
   conjugationDetail: string;
+  kanjiAnalysis?: KanjiDetail[];
   exampleSameVerb: string;
   exampleSameVerbKo: string;
   exampleDiffVerb: string;
@@ -384,7 +393,7 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
     const popover = popoverRef.current;
     if (!popover) return;
 
-    const allSpans = document.querySelectorAll<HTMLElement>(".nhk-body span.color3, .nhk-body span.color4");
+    const allSpans = document.querySelectorAll<HTMLElement>(".nhk-body span.color0, .nhk-body span.color1, .nhk-body span.color2, .nhk-body span.color3, .nhk-body span.color4, .nhk-body span.color5");
     if (allSpans.length === 0) return;
 
     // Build lookup: exact match + prefix match (for split spans like なっ→なって)
@@ -419,28 +428,45 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
       span.classList.add("verb-active");
 
       const conjDetail = (verb.conjugationDetail || "").replace(/\n/g, "<br>");
+      const kanjiHtml = (verb.kanjiAnalysis && verb.kanjiAnalysis.length > 0)
+        ? `<div style="margin-top:14px;border-top:1px solid #eee;padding-top:12px">
+            <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:8px">${lang === "en" ? "Kanji Breakdown" : "한자 분석"}</div>
+            ${verb.kanjiAnalysis.map((k: KanjiDetail) => `
+              <div style="margin-bottom:10px;padding:8px 12px;background:#fffbf0;border-radius:8px;border-left:3px solid #f0c040">
+                <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+                  <span style="font-size:24px;font-weight:700;color:#1a1a2e">${k.kanji}</span>
+                  <span style="font-size:13px;color:#666">${k.reading}</span>
+                  <span style="font-size:13px;color:#555">${k.meaning}</span>
+                </div>
+                <div style="font-size:12px;color:#666;margin-bottom:3px">${lang === "en" ? "Words:" : "활용 단어:"} ${k.similar}</div>
+                <div style="font-size:12px;color:#888;font-style:italic">${k.mnemonic}</div>
+              </div>
+            `).join("")}
+          </div>`
+        : "";
       const arrowId = "popover-arrow";
       popover.innerHTML = `
         <div id="${arrowId}" style="position:absolute;width:12px;height:12px;background:#fff;border:1px solid #e0e0e0;transform:rotate(45deg);z-index:-1"></div>
-        <div style="position:relative;z-index:1;max-height:380px;overflow:auto">
+        <div style="position:relative;z-index:1;max-height:480px;overflow:auto">
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px">
           <span style="font-size:22px;font-weight:700;color:#1a1a2e">${verb.dictionaryForm}</span>
           <span style="font-size:14px;color:#999">${verb.reading}</span>
         </div>
         <div style="font-size:14px;color:#555;margin-bottom:8px">${verb.meaning || ""}</div>
         <div style="font-size:13px;color:#888;margin-bottom:10px;padding:3px 8px;background:#f5f5f5;border-radius:4px;display:inline-block">${lang === "en" ? "In article:" : "기사 표현:"} ${verb.surfaceForm}</div>
-        <div style="font-size:13px;color:#2c6fbb;background:#f0f6ff;padding:8px 12px;border-radius:8px;margin-bottom:6px;line-height:1.5;font-weight:600">${verb.conjugationRule}</div>
-        <div style="font-size:13px;color:#444;background:#fafafa;padding:8px 12px;border-radius:8px;margin-bottom:14px;line-height:1.7;border-left:3px solid #ddd">${conjDetail}</div>
-        <div style="margin-bottom:10px">
+        ${verb.conjugationRule ? `<div style="font-size:13px;color:#2c6fbb;background:#f0f6ff;padding:8px 12px;border-radius:8px;margin-bottom:6px;line-height:1.5;font-weight:600">${verb.conjugationRule}</div>` : ""}
+        ${conjDetail ? `<div style="font-size:13px;color:#444;background:#fafafa;padding:8px 12px;border-radius:8px;margin-bottom:14px;line-height:1.7;border-left:3px solid #ddd">${conjDetail}</div>` : ""}
+        ${kanjiHtml}
+        ${verb.exampleSameVerb ? `<div style="margin-bottom:10px">
           <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:4px">${lang === "en" ? "Same verb, different form" : "같은 동사, 다른 활용"}</div>
           <div style="font-size:15px;color:#222;line-height:1.8;margin-bottom:2px">${verb.exampleSameVerb}</div>
-          <div style="font-size:13px;color:#2c6fbb;line-height:1.5">${verb.exampleSameVerbKo}</div>
-        </div>
-        <div>
+          <div style="font-size:13px;color:#2c6fbb;line-height:1.5">${verb.exampleSameVerbKo || ""}</div>
+        </div>` : ""}
+        ${verb.exampleDiffVerb ? `<div>
           <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:4px">${lang === "en" ? "Different verb, same form" : "다른 동사, 같은 활용"}</div>
           <div style="font-size:15px;color:#222;line-height:1.8;margin-bottom:2px">${verb.exampleDiffVerb}</div>
-          <div style="font-size:13px;color:#2c6fbb;line-height:1.5">${verb.exampleDiffVerbKo}</div>
-        </div>
+          <div style="font-size:13px;color:#2c6fbb;line-height:1.5">${verb.exampleDiffVerbKo || ""}</div>
+        </div>` : ""}
         </div>
       `;
 
