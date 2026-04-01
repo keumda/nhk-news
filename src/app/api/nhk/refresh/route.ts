@@ -15,9 +15,14 @@ import {
   writeVerbAnalysis,
   readAudio,
   writeAudio,
+  readPrompts,
   cleanOldCaches,
   VerbAnalysisItem,
 } from "@/lib/cache";
+import {
+  DEFAULT_TRANSLATION_PROMPT,
+  DEFAULT_VERB_ANALYSIS_PROMPT,
+} from "@/lib/prompts";
 
 /* ─── lock ─── */
 let refreshLock = false;
@@ -117,6 +122,10 @@ async function translateTexts(texts: string[]): Promise<string[]> {
 
   const numbered = texts.map((t, i) => `[${i + 1}] ${t}`).join("\n");
 
+  // Load custom prompt or use default
+  const saved = await readPrompts();
+  const promptTemplate = saved?.translationPrompt || DEFAULT_TRANSLATION_PROMPT;
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -130,15 +139,7 @@ async function translateTexts(texts: string[]): Promise<string[]> {
       messages: [
         {
           role: "user",
-          content: `다음은 NHK やさしいにほんご(쉬운 일본어) 뉴스 기사의 문단들입니다. 각 문단을 자연스러운 한국어로 번역해주세요.
-
-규칙:
-- 번호 형식 [1], [2]... 을 유지하세요
-- 일본어 읽기(후리가나)를 한국어에 포함하지 마세요
-- 의역하여 자연스러운 한국어 문장으로 만드세요
-- 번역만 출력하고 설명은 하지 마세요
-
-${numbered}`,
+          content: `${promptTemplate}\n\n${numbered}`,
         },
       ],
     }),
@@ -184,6 +185,13 @@ async function analyzeVerbsForRefresh(bodyHtml: string): Promise<VerbAnalysisIte
   $ctx("rt").remove();
   const plainText = $ctx.text().trim();
 
+  // Load custom prompt or use default, then replace placeholders
+  const saved = await readPrompts();
+  const promptTemplate = saved?.verbAnalysisPrompt || DEFAULT_VERB_ANALYSIS_PROMPT;
+  const prompt = promptTemplate
+    .replace("{{plainText}}", plainText)
+    .replace("{{numbered}}", numbered);
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -196,42 +204,7 @@ async function analyzeVerbsForRefresh(bodyHtml: string): Promise<VerbAnalysisIte
       max_tokens: 8192,
       messages: [{
         role: "user",
-        content: `당신은 일본어 문법 전문가입니다. NHK やさしいにほんご 뉴스 기사에서 추출한 동사/형용사를 한국어 학습자를 위해 분석해주세요.
-
-기사 본문:
-${plainText}
-
-동사/형용사 후보:
-${numbered}
-
-중요: 후보 목록의 단어는 기사 문장에서 잘린 조각일 수 있습니다. 기사 본문의 문맥을 반드시 참고하여, 해당 단어가 실제 문장에서 어떤 전체 표현의 일부인지 파악하세요.
-
-각 후보를 분석해주세요:
-1. 동사 또는 い형용사가 아닌 경우 건너뛰세요
-2. 동사/い형용사인 경우 아래 JSON 형식으로 분석해주세요
-
-응답 형식 - JSON 배열만 출력:
-[
-  {
-    "surfaceForm": "기사에 나온 활용형 그대로",
-    "dictionaryForm": "사전형 (원형)",
-    "reading": "사전형의 정확한 히라가나 읽기",
-    "meaning": "사전형의 한국어 뜻",
-    "conjugationRule": "활용 규칙 이름 (반드시 한국어로!)",
-    "conjugationDetail": "변형 과정을 단계별로 한국어로 상세 설명",
-    "exampleSameVerb": "같은 동사를 기사와는 다른 활용형/문법으로 사용한 예문 (일본어)",
-    "exampleSameVerbKo": "위 예문의 한국어 번역",
-    "exampleDiffVerb": "반드시 다른 동사를 기사와 같은 활용형으로 사용한 예문 (일본어)",
-    "exampleDiffVerbKo": "위 예문의 한국어 번역"
-  }
-]
-
-규칙:
-- JSON 배열만 출력. 모든 설명은 반드시 한국어로.
-- conjugationDetail이 가장 중요: 원형에서 기사 활용형까지 단계별 변형 설명.
-- 복합동사는 각 동사의 역할과 결합 방식을 설명.
-- reading은 정확한 히라가나.
-- exampleDiffVerb는 반드시 다른 동사 사용!`,
+        content: prompt,
       }],
     }),
   });
