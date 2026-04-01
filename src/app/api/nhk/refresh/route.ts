@@ -287,7 +287,7 @@ async function downloadAudioMp3(
 
 /* ─── main refresh ─── */
 
-export async function POST() {
+export async function POST(request: Request) {
   if (refreshLock) {
     return NextResponse.json({ status: "already_running" }, { status: 409 });
   }
@@ -295,6 +295,13 @@ export async function POST() {
   refreshLock = true;
   const dateStr = todayJST();
   const errors: string[] = [];
+
+  // Parse force flag from request body (optional)
+  let forceVerbs = false;
+  try {
+    const body = await request.json();
+    forceVerbs = !!body?.forceVerbs;
+  } catch { /* no body or invalid JSON — ignore */ }
 
   try {
     // Clean old caches
@@ -377,7 +384,7 @@ export async function POST() {
 
         // 2c. Verb analysis
         const existingVerbs = await readVerbAnalysis(id, dateStr);
-        if (!existingVerbs && body) {
+        if ((!existingVerbs || forceVerbs) && body) {
           try {
             const verbs = await analyzeVerbsForRefresh(body);
             if (verbs.length > 0) {
