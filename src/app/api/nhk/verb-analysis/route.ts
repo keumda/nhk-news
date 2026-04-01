@@ -10,44 +10,22 @@ import {
 import { DEFAULT_VERB_ANALYSIS_PROMPT, EN_VERB_ANALYSIS_PROMPT } from "@/lib/prompts";
 
 /**
- * Extract verb/adjective candidate surface forms from NHK article HTML.
- * Targets span.color3 and span.color4 which contain verbs and conjugations.
- * Strips <rt> (furigana) tags to get the base text.
+ * Call Claude API to analyze all learnable words from the article.
+ * Sends the full plain text — the AI identifies which words to analyze.
  */
-function extractVerbCandidates(bodyHtml: string): string[] {
-  const $ = cheerio.load(bodyHtml);
-  const candidates = new Set<string>();
-
-  $("span.color0, span.color1, span.color2, span.color3, span.color4, span.color5").each((_, el) => {
-    // Clone and remove rt tags to get kanji + okurigana
-    const clone = $(el).clone();
-    clone.find("rt").remove();
-    const text = clone.text().trim();
-    if (text.length > 0) {
-      candidates.add(text);
-    }
-  });
-
-  return Array.from(candidates);
-}
-
-/**
- * Call Claude API to analyze verbs from the article.
- */
-async function analyzeVerbs(
+async function analyzeWords(
   bodyHtml: string,
-  candidates: string[],
   lang?: string,
 ): Promise<VerbAnalysisItem[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
 
-  // Get plain text for context (strip all HTML)
+  // Get plain text (strip all HTML + furigana)
   const $ = cheerio.load(bodyHtml);
   $("rt").remove();
   const plainText = $.text().trim();
 
-  const numbered = candidates.map((c, i) => `[${i + 1}] ${c}`).join("\n");
+  if (!plainText) return [];
 
   // Load custom prompt or use default (language-specific), then replace placeholders
   const saved = await readPrompts();
@@ -56,7 +34,7 @@ async function analyzeVerbs(
     : (saved?.verbAnalysisPrompt || DEFAULT_VERB_ANALYSIS_PROMPT);
   const prompt = promptTemplate
     .replace("{{plainText}}", plainText)
-    .replace("{{numbered}}", numbered);
+    .replace("{{numbered}}", ""); // backward compat: clear legacy placeholder
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -67,7 +45,7 @@ async function analyzeVerbs(
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 8192,
+      max_tokens: 16384,
       messages: [
         {
           role: "user",
@@ -79,7 +57,7 @@ async function analyzeVerbs(
 
   if (!res.ok) {
     const err = await res.text();
-    console.error("Claude verb analysis error:", res.status, err);
+    console.error("Claude word analysis error:", res.status, err);
     return [];
   }
 
@@ -95,20 +73,21 @@ async function analyzeVerbs(
     const parsed = JSON.parse(jsonStr);
     if (!Array.isArray(parsed)) return [];
 
-    // Validate each entry (core fields required, rest optional)
+    // Validate: surfaceForm must exist in the plain text
     return parsed.filter(
       (v: Record<string, unknown>) =>
-        v.surfaceForm && v.dictionaryForm && v.reading && v.meaning,
+        v.surfaceForm && v.dictionaryForm && v.reading && v.meaning &&
+        typeof v.surfaceForm === "string" && plainText.includes(v.surfaceForm as string),
     ) as VerbAnalysisItem[];
   } catch (e) {
-    console.error("Failed to parse verb analysis JSON:", e);
+    console.error("Failed to parse word analysis JSON:", e);
     return [];
   }
 }
 
 /**
  * POST /api/nhk/verb-analysis
- * Analyze verbs in an article body. Caches results per article.
+ * Analyze all learnable words in an article body. Caches results per article.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -135,13 +114,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Extract candidates and analyze
-    const candidates = extractVerbCandidates(bodyHtml);
-    if (candidates.length === 0) {
-      return NextResponse.json({ verbs: [] });
-    }
-
-    const verbs = await analyzeVerbs(bodyHtml, candidates, lang);
+    const verbs = await analyzeWords(bodyHtml, lang);
 
     // Cache results
     if (verbs.length > 0) {
@@ -154,9 +127,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ verbs });
   } catch (error) {
-    console.error("Verb analysis error:", error);
+    console.error("Word analysis error:", error);
     return NextResponse.json(
-      { error: "Verb analysis failed" },
+      { error: "Word analysis failed" },
       { status: 500 },
     );
   }

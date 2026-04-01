@@ -115,8 +115,9 @@ export default function AdminPage() {
           </button>
         </div>
         <p style={styles.hint}>
-          동사/형용사/한자 등을 분석할 때 사용됩니다. <code style={styles.code}>{"{{plainText}}"}</code>는 기사 본문,{" "}
-          <code style={styles.code}>{"{{numbered}}"}</code>는 분석 후보 목록으로 자동 치환됩니다.
+          기사의 모든 단어(동사/형용사/한자 명사/문법 표현 등)를 분석할 때 사용됩니다.{" "}
+          <code style={styles.code}>{"{{plainText}}"}</code>는 기사 본문으로 자동 치환됩니다.
+          AI가 기사에서 학습 가치가 있는 모든 단어를 자동으로 찾아 분석합니다.
         </p>
         <textarea
           value={verbAnalysisPrompt}

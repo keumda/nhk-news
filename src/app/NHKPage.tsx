@@ -393,35 +393,61 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
     const popover = popoverRef.current;
     if (!popover) return;
 
-    const allSpans = document.querySelectorAll<HTMLElement>(".nhk-body span.color0, .nhk-body span.color1, .nhk-body span.color2, .nhk-body span.color3, .nhk-body span.color4, .nhk-body span.color5");
-    if (allSpans.length === 0) return;
-
-    // Build lookup: exact match + prefix match (for split spans like なっ→なって)
-    const verbExact = new Map<string, VerbAnalysisItem>();
-    const verbList = verbAnalysis;
-    for (const v of verbList) verbExact.set(v.surfaceForm, v);
-
-    const findVerb = (text: string): VerbAnalysisItem | undefined => {
-      // 1. Exact match
-      if (verbExact.has(text)) return verbExact.get(text);
-      // 2. surfaceForm starts with span text (なっ matches なって)
-      for (const v of verbList) {
-        if (v.surfaceForm.startsWith(text) && text.length >= 1) return v;
-      }
-      // 3. span text starts with surfaceForm
-      for (const v of verbList) {
-        if (text.startsWith(v.surfaceForm)) return v;
-      }
-      return undefined;
-    };
-
-    const spanText = (el: HTMLElement): string => {
+    // Build span-to-verb mapping using paragraph text index
+    const spanToVerb = new Map<HTMLElement, VerbAnalysisItem>();
+    const spanTextFn = (el: HTMLElement): string => {
       const clone = el.cloneNode(true) as HTMLElement;
       clone.querySelectorAll("rt").forEach((rt) => rt.remove());
       return clone.textContent?.trim() || "";
     };
 
-    const spans = allSpans;
+    // Sort analysis items by surfaceForm length (longest first for greedy matching)
+    const sortedAnalysis = [...verbAnalysis].sort((a, b) => b.surfaceForm.length - a.surfaceForm.length);
+
+    // For each paragraph, build a flat text from all spans and match surfaceForms
+    const paragraphs = document.querySelectorAll<HTMLElement>(".nhk-body");
+    for (const para of paragraphs) {
+      const colorSpans = Array.from(para.querySelectorAll<HTMLElement>('span[class^="color"]'))
+        .filter(s => !s.querySelector('span[class^="color"]')); // leaf spans only
+
+      // Build flat text with span position mapping
+      let flatText = "";
+      const spanIndex: { el: HTMLElement; start: number; end: number; text: string }[] = [];
+      for (const span of colorSpans) {
+        const text = spanTextFn(span);
+        spanIndex.push({ el: span, start: flatText.length, end: flatText.length + text.length, text });
+        flatText += text;
+      }
+
+      // Match each surfaceForm against the flat text
+      const used = new Array(flatText.length).fill(false);
+      for (const verb of sortedAnalysis) {
+        let searchFrom = 0;
+        while (true) {
+          const idx = flatText.indexOf(verb.surfaceForm, searchFrom);
+          if (idx === -1) break;
+          const end = idx + verb.surfaceForm.length;
+          // Check overlap with already-matched regions
+          let overlap = false;
+          for (let i = idx; i < end; i++) {
+            if (used[i]) { overlap = true; break; }
+          }
+          if (!overlap) {
+            for (let i = idx; i < end; i++) used[i] = true;
+            // Mark all spans that overlap with this match
+            for (const si of spanIndex) {
+              if (si.start < end && si.end > idx && si.text.length > 0) {
+                if (!spanToVerb.has(si.el)) spanToVerb.set(si.el, verb);
+              }
+            }
+          }
+          searchFrom = idx + 1;
+        }
+      }
+    }
+
+    const allHighlighted = Array.from(spanToVerb.keys());
+    if (allHighlighted.length === 0) return;
 
     const showPopover = (verb: VerbAnalysisItem, span: HTMLElement, rect: DOMRect) => {
       // Highlight the hovered span
@@ -568,10 +594,8 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
       document.addEventListener("touchstart", onTouchOutside, { passive: true });
     }
 
-    spans.forEach((span) => {
-      const text = spanText(span);
-      const verb = findVerb(text);
-      if (!verb) return;
+    allHighlighted.forEach((span) => {
+      const verb = spanToVerb.get(span)!;
       span.classList.add("verb-hover");
 
       if (isTouchDevice) {

@@ -166,31 +166,19 @@ async function analyzeVerbsForRefresh(bodyHtml: string): Promise<VerbAnalysisIte
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return [];
 
-  // Extract candidates from all color-coded spans
+  // Get plain text (strip all HTML + furigana)
   const $ = cheerio.load(bodyHtml);
-  const candidates = new Set<string>();
-  $("span.color0, span.color1, span.color2, span.color3, span.color4, span.color5").each((_, el) => {
-    const clone = $(el).clone();
-    clone.find("rt").remove();
-    const text = clone.text().trim();
-    if (text.length > 0) candidates.add(text);
-  });
-  if (candidates.size === 0) return [];
+  $("rt").remove();
+  const plainText = $.text().trim();
 
-  const candidateArr = Array.from(candidates);
-  const numbered = candidateArr.map((c, i) => `[${i + 1}] ${c}`).join("\n");
-
-  // Get plain text for context
-  const $ctx = cheerio.load(bodyHtml);
-  $ctx("rt").remove();
-  const plainText = $ctx.text().trim();
+  if (!plainText) return [];
 
   // Load custom prompt or use default, then replace placeholders
   const saved = await readPrompts();
   const promptTemplate = saved?.verbAnalysisPrompt || DEFAULT_VERB_ANALYSIS_PROMPT;
   const prompt = promptTemplate
     .replace("{{plainText}}", plainText)
-    .replace("{{numbered}}", numbered);
+    .replace("{{numbered}}", ""); // backward compat
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -201,7 +189,7 @@ async function analyzeVerbsForRefresh(bodyHtml: string): Promise<VerbAnalysisIte
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 8192,
+      max_tokens: 16384,
       messages: [{
         role: "user",
         content: prompt,
@@ -220,7 +208,8 @@ async function analyzeVerbsForRefresh(bodyHtml: string): Promise<VerbAnalysisIte
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (v: Record<string, unknown>) =>
-        v.surfaceForm && v.dictionaryForm && v.reading && v.meaning,
+        v.surfaceForm && v.dictionaryForm && v.reading && v.meaning &&
+        typeof v.surfaceForm === "string" && plainText.includes(v.surfaceForm as string),
     ) as VerbAnalysisItem[];
   } catch {
     return [];
