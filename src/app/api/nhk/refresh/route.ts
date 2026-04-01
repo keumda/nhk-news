@@ -385,6 +385,7 @@ export async function POST(request: Request) {
         if ((!existingVerbs || forceVerbs) && body) {
           try {
             const verbs = await analyzeVerbsForRefresh(body);
+            console.log(`[refresh] Verb analysis for ${id}: ${verbs.length} items`);
             if (verbs.length > 0) {
               await writeVerbAnalysis(id, {
                 id,
@@ -395,6 +396,8 @@ export async function POST(request: Request) {
           } catch (verbErr) {
             console.error(`[refresh] Verb analysis failed for ${id}:`, verbErr);
           }
+        } else {
+          console.log(`[refresh] Verb analysis skipped for ${id} (existingVerbs=${!!existingVerbs}, forceVerbs=${forceVerbs})`);
         }
 
         // 2d. Thumbnail — download image locally
