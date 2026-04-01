@@ -495,7 +495,7 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
 
       popover.innerHTML = `
         <div id="${arrowId}" style="position:absolute;width:12px;height:12px;background:#fff;border:1px solid #e0e0e0;transform:rotate(45deg);z-index:-1"></div>
-        <div style="position:relative;z-index:1;max-height:min(60vh, 420px);overflow-y:auto;-webkit-overflow-scrolling:touch">
+        <div style="position:relative;z-index:1;max-height:calc(min(65vh, 480px) - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch">
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px">
           <span style="font-size:22px;font-weight:700;color:#1a1a2e">${verb.dictionaryForm}</span>
           <span style="font-size:14px;color:#999">${verb.reading}</span>
@@ -723,7 +723,9 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
                     <div style={styles.audioControls}>
                       <button onClick={() => skipAudio(-10)} style={styles.skipBtn}>-10s</button>
                       <button onClick={togglePlay} style={styles.playBtn}>
-                        {isPlaying ? "⏸" : "▶"}
+                        {isPlaying
+                          ? <svg width="16" height="16" viewBox="0 0 16 16" fill="#fff"><rect x="2" y="1" width="4" height="14" rx="1"/><rect x="10" y="1" width="4" height="14" rx="1"/></svg>
+                          : <svg width="16" height="16" viewBox="0 0 16 16" fill="#fff"><path d="M3 1.5v13l11-6.5z"/></svg>}
                       </button>
                       <button onClick={() => skipAudio(10)} style={styles.skipBtn}>+10s</button>
                       <span style={styles.timeText}>
@@ -1140,6 +1142,6 @@ const styles: Record<string, React.CSSProperties> = {
   popover: {
     position: "fixed" as const, width: "min(360px, calc(100vw - 24px))", background: "#fff", borderRadius: 14,
     border: "1px solid #e0e0e0", boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-    padding: 18, zIndex: 1000, maxHeight: 420, overflow: "visible",
+    padding: 18, zIndex: 1000, maxHeight: "min(65vh, 480px)", overflow: "hidden",
   },
 };
