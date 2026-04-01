@@ -296,10 +296,12 @@ export async function POST(request: Request) {
   const dateStr = todayJST();
   const errors: string[] = [];
 
-  // Parse force flag from URL query param: ?forceVerbs=true
+  // Parse force flags from URL query params: ?force=true (both) or ?forceVerbs=true&forceTranslation=true
   const url = new URL(request.url);
-  const forceVerbs = url.searchParams.get("forceVerbs") === "true";
-  console.log(`[refresh] forceVerbs=${forceVerbs}`);
+  const forceAll = url.searchParams.get("force") === "true";
+  const forceVerbs = forceAll || url.searchParams.get("forceVerbs") === "true";
+  const forceTranslation = forceAll || url.searchParams.get("forceTranslation") === "true";
+  console.log(`[refresh] forceVerbs=${forceVerbs}, forceTranslation=${forceTranslation}`);
 
   try {
     // Clean old caches
@@ -352,7 +354,7 @@ export async function POST(request: Request) {
         }
 
         // 2b. Translate (title separately + body paragraphs)
-        if (!existingTranslation && body) {
+        if ((!existingTranslation || forceTranslation) && body) {
           const bodyTexts = extractTexts(body);
           // Extract plain title text (strip ruby/HTML)
           const titleHtml = (article.title_with_ruby as string) || article.title || "";

@@ -453,11 +453,13 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
       // Highlight the hovered span
       span.classList.add("verb-active");
 
+      const hasKanji = verb.kanjiAnalysis && verb.kanjiAnalysis.length > 0;
+      const isNoun = /^(명사|부사|noun|adverb|な형용사)/.test(verb.conjugationRule || "");
       const conjDetail = (verb.conjugationDetail || "").replace(/\n/g, "<br>");
-      const kanjiHtml = (verb.kanjiAnalysis && verb.kanjiAnalysis.length > 0)
-        ? `<div style="margin-top:14px;border-top:1px solid #eee;padding-top:12px">
+      const kanjiHtml = hasKanji
+        ? `<div style="${isNoun ? "" : "margin-top:14px;border-top:1px solid #eee;padding-top:12px"}">
             <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:8px">${lang === "en" ? "Kanji Breakdown" : "한자 분석"}</div>
-            ${verb.kanjiAnalysis.map((k: KanjiDetail) => `
+            ${verb.kanjiAnalysis!.map((k: KanjiDetail) => `
               <div style="margin-bottom:10px;padding:8px 12px;background:#fffbf0;border-radius:8px;border-left:3px solid #f0c040">
                 <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
                   <span style="font-size:24px;font-weight:700;color:#1a1a2e">${k.kanji}</span>
@@ -471,15 +473,12 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
           </div>`
         : "";
       const arrowId = "popover-arrow";
-      popover.innerHTML = `
-        <div id="${arrowId}" style="position:absolute;width:12px;height:12px;background:#fff;border:1px solid #e0e0e0;transform:rotate(45deg);z-index:-1"></div>
-        <div style="position:relative;z-index:1;max-height:480px;overflow:auto">
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px">
-          <span style="font-size:22px;font-weight:700;color:#1a1a2e">${verb.dictionaryForm}</span>
-          <span style="font-size:14px;color:#999">${verb.reading}</span>
-        </div>
-        <div style="font-size:14px;color:#555;margin-bottom:8px">${verb.meaning || ""}</div>
-        <div style="font-size:13px;color:#888;margin-bottom:10px;padding:3px 8px;background:#f5f5f5;border-radius:4px;display:inline-block">${lang === "en" ? "In article:" : "기사 표현:"} ${verb.surfaceForm}</div>
+
+      // For nouns/adverbs with kanji: show only header + kanji analysis (skip conjugation/examples)
+      // For verbs/adjectives: show full analysis
+      const bodyHtml = isNoun && hasKanji
+        ? kanjiHtml
+        : `${verb.surfaceForm !== verb.dictionaryForm ? `<div style="font-size:13px;color:#888;margin-bottom:10px;padding:3px 8px;background:#f5f5f5;border-radius:4px;display:inline-block">${lang === "en" ? "In article:" : "기사 표현:"} ${verb.surfaceForm}</div>` : ""}
         ${verb.conjugationRule ? `<div style="font-size:13px;color:#2c6fbb;background:#f0f6ff;padding:8px 12px;border-radius:8px;margin-bottom:6px;line-height:1.5;font-weight:600">${verb.conjugationRule}</div>` : ""}
         ${conjDetail ? `<div style="font-size:13px;color:#444;background:#fafafa;padding:8px 12px;border-radius:8px;margin-bottom:14px;line-height:1.7;border-left:3px solid #ddd">${conjDetail}</div>` : ""}
         ${kanjiHtml}
@@ -492,7 +491,17 @@ export default function NHKPage({ initialLang = "ko" }: { initialLang?: Lang } =
           <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:4px">${lang === "en" ? "Different verb, same form" : "다른 동사, 같은 활용"}</div>
           <div style="font-size:15px;color:#222;line-height:1.8;margin-bottom:2px">${verb.exampleDiffVerb}</div>
           <div style="font-size:13px;color:#2c6fbb;line-height:1.5">${verb.exampleDiffVerbKo || ""}</div>
-        </div>` : ""}
+        </div>` : ""}`;
+
+      popover.innerHTML = `
+        <div id="${arrowId}" style="position:absolute;width:12px;height:12px;background:#fff;border:1px solid #e0e0e0;transform:rotate(45deg);z-index:-1"></div>
+        <div style="position:relative;z-index:1;max-height:min(60vh, 420px);overflow-y:auto;-webkit-overflow-scrolling:touch">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px">
+          <span style="font-size:22px;font-weight:700;color:#1a1a2e">${verb.dictionaryForm}</span>
+          <span style="font-size:14px;color:#999">${verb.reading}</span>
+        </div>
+        <div style="font-size:14px;color:#555;margin-bottom:8px">${verb.meaning || ""}</div>
+        ${bodyHtml}
         </div>
       `;
 
